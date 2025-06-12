@@ -1,0 +1,10 @@
+# Minimal dependencies for License Plate Detection
+torch>=2.1.0
+torchvision>=0.16.0
+torchaudio>=2.1.0
+transformers>=4.35.0
+opencv-python>=4.8.0
+Pillow>=10.0.0
+numpy>=1.24.0
+timm>=0.9.12
+ultralytics>=8.0.196

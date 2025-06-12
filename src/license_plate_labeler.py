@@ -1,23 +1,536 @@
 import os
 import cv2
 import torch
-from transformers import YolosImageProcessor, YolosForObjectDetection
-from PIL import Image
 import numpy as np
 from pathlib import Path
 import argparse
 import shutil
+import urllib.request
+import ssl
+import requests
+from urllib.parse import urlparse
+from PIL import Image
+from transformers import (
+    YolosImageProcessor, 
+    YolosForObjectDetection,
+    DetrImageProcessor, 
+    DetrForObjectDetection
+)
+from ultralytics import YOLO
 
 class LicensePlateYOLOLabeler:
-    def __init__(self, model_name="nickmuchi/yolos-small-finetuned-license-plate-detection", local_model_path=None):
+    # 사용 가능한 모델들 정의 (기존 모델 + 검증된 추가 모델)
+    AVAILABLE_MODELS = {
+        # YOLOS 기반 모델 (Vision Transformer)
+        "yolos-small": {
+            "name": "nickmuchi/yolos-small-finetuned-license-plate-detection",
+            "description": "YOLO + Vision Transformer, 번호판 전용 파인튜닝 (90MB)",
+            "download_uri": "https://huggingface.co/nickmuchi/yolos-small-finetuned-license-plate-detection",
+            "processor_type": "YolosImageProcessor",
+            "framework": "transformers",
+            "size": "90MB",
+            "performance": "높음",
+            "pros": ["높은 정확도", "Transformer 기반", "빠른 추론"],
+            "cons": ["상대적으로 큰 모델 크기"],
+            "verified": True
+        },
+        "yolos-rego": {
+            "name": "nickmuchi/yolos-small-rego-plates-detection",
+            "description": "차량+번호판 동시 탐지, 735 이미지로 200 에포크 훈련 (90MB)",
+            "download_uri": "https://huggingface.co/nickmuchi/yolos-small-rego-plates-detection",
+            "processor_type": "YolosImageProcessor",
+            "framework": "transformers",
+            "size": "90MB",
+            "performance": "높음",
+            "classes": ["vehicle", "license-plate"],
+            "pros": ["차량과 번호판 동시 탐지", "좋은 일반화 성능"],
+            "cons": ["데이터셋이 상대적으로 작음"],
+            "verified": True
+        },
+        
+        # DETR 기반 모델 (Detection Transformer)
+        "detr-resnet50": {
+            "name": "nickmuchi/detr-resnet50-license-plate-detection",
+            "description": "DETR + ResNet50 백본, 번호판 탐지 전용 (160MB)",
+            "download_uri": "https://huggingface.co/nickmuchi/detr-resnet50-license-plate-detection",
+            "processor_type": "DetrImageProcessor",
+            "framework": "transformers",
+            "size": "160MB",
+            "performance": "매우 높음",
+            "pros": ["매우 높은 정확도", "엔드투엔드 학습", "강력한 백본"],
+            "cons": ["큰 모델 크기", "느린 추론 속도"],
+            "verified": True
+        },
+        
+        # YOLOv5 기반 모델
+        "yolov5m": {
+            "name": "keremberke/yolov5m-license-plate",
+            "description": "YOLOv5 medium 모델, 번호판 탐지 특화 (40MB)",
+            "download_uri": "https://huggingface.co/keremberke/yolov5m-license-plate/resolve/main/best.pt",
+            "processor_type": "YOLOv5",
+            "framework": "ultralytics",
+            "size": "40MB",
+            "performance": "높음",
+            "direct_download": True,
+            "pros": ["빠른 추론 속도", "작은 모델 크기", "실시간 처리 가능"],
+            "cons": ["YOLOS/DETR 대비 정확도 다소 낮음"],
+            "verified": True
+        },
+        
+        # YOLOv8 기반 모델
+        "yolov8s": {
+            "name": "yolov8s.pt",
+            "description": "기본 YOLOv8 small 모델 (22MB) - 범용 객체 탐지",
+            "download_uri": "./model/embeded/yolov8s.pt",
+            "processor_type": "YOLOv8",
+            "framework": "ultralytics",
+            "size": "22MB",
+            "performance": "중간",
+            "pros": ["빠름", "안정적", "항상 사용 가능"],
+            "cons": ["번호판 특화 안됨"],
+            "verified": True,
+            "always_available": True,
+            "local_path": "./model/embeded/yolov8s.pt"
+        },
+        
+        # 기본 모델들 (호환성 유지)
+        "yolos-base": {
+            "name": "hustvl/yolos-base",
+            "description": "YOLOS Base model (general object detection, may need fine-tuning)",
+            "download_uri": "https://huggingface.co/hustvl/yolos-base",
+            "processor_type": "YolosImageProcessor",
+            "framework": "transformers",
+            "size": "110MB",
+            "performance": "중간",
+            "pros": ["범용 객체 탐지", "안정적"],
+            "cons": ["번호판 특화 없음"],
+            "verified": True
+        },
+        "detr-resnet-50": {
+            "name": "facebook/detr-resnet-50",
+            "description": "DETR ResNet-50 model (general object detection, may need fine-tuning)",
+            "download_uri": "https://huggingface.co/facebook/detr-resnet-50",
+            "processor_type": "DetrImageProcessor",
+            "framework": "transformers",
+            "size": "160MB",
+            "performance": "중간",
+            "pros": ["범용 객체 탐지", "강력한 백본"],
+            "cons": ["번호판 특화 없음"],
+            "verified": True
+        }
+    }
+    
+    # 성능 비교 정보 업데이트
+    PERFORMANCE_COMPARISON = {
+        "속도_순위": [
+            "yolov5m (YOLOv5)",
+            "yolos-small (YOLOS)",
+            "detr-resnet50 (DETR)"
+        ],
+        "정확도_순위": [
+            "detr-resnet50 (DETR)",
+            "yolos-small (YOLOS)",
+            "yolov5m (YOLOv5)"
+        ],
+        "모델크기_순위": [
+            "yolov5m (40MB)",
+            "yolos-small (90MB)",
+            "detr-resnet50 (160MB)"
+        ],
+        "추천_용도": {
+            "실시간_처리": "yolov5m",
+            "최고_정확도": "detr-resnet50", 
+            "균형잡힌_성능": "yolos-small",
+            "안정성_우선": "yolos-small"
+        }
+    }
+
+    @classmethod
+    def list_available_models(cls):
+        """사용 가능한 모델 목록 출력 (검증 정보 포함)"""
+        print("\n=== 사용 가능한 모델 목록 ===")
+        
+        # 카테고리별 분류 업데이트
+        categories = {
+            "🔥 추천 번호판 전용 모델": ["yolos-small", "detr-resnet50"],
+            "🏆 YOLOS 기반 (Transformer)": ["yolos-small", "yolos-rego", "yolos-base"],
+            "🎯 DETR 기반 (Detection Transformer)": ["detr-resnet50", "detr-resnet-50"],
+            "⚡ YOLOv8 기반": ["yolov8s"],
+            "🔧 YOLOv5 기반": ["yolov5m"],
+            "📦 백업용 기본 모델": ["yolov8s"]
+        }
+        
+        for category, models in categories.items():
+            print(f"\n📂 {category}")
+            for key in models:
+                if key in cls.AVAILABLE_MODELS:
+                    info = cls.AVAILABLE_MODELS[key]
+                    verified_mark = "✅" if info.get("verified", False) else "⚠️"
+                    print(f"  {verified_mark} 모델 키: {key}")
+                    print(f"     이름: {info['name']}")
+                    print(f"     설명: {info['description']}")
+                    print(f"     프레임워크: {info['framework']}")
+                    print(f"     크기: {info['size']}")
+                    print(f"     성능: {info['performance']}")
+                    if 'pros' in info:
+                        print(f"     장점: {', '.join(info['pros'])}")
+                    if 'cons' in info:
+                        print(f"     단점: {', '.join(info['cons'])}")
+                    if 'fallback' in info:
+                        print(f"     대체 모델: {info['fallback']}")
+                    print(f"     사용 예시: python license_plate_labeler.py -i input_dir -o output_dir -m {key}")
+                    print()
+        
+        print(f"\n총 {len(cls.AVAILABLE_MODELS)}개의 모델이 사용 가능합니다.")
+        
+        # 성능 비교 정보 출력
+        print("\n=== 성능 비교 정보 ===")
+        print("\n🏃 속도 순위 (빠른 순):")
+        for i, model in enumerate(cls.PERFORMANCE_COMPARISON["속도_순위"], 1):
+            print(f"  {i}. {model}")
+        
+        print("\n🎯 정확도 순위 (높은 순):")
+        for i, model in enumerate(cls.PERFORMANCE_COMPARISON["정확도_순위"], 1):
+            print(f"  {i}. {model}")
+        
+        print("\n📦 모델 크기 순위 (작은 순):")
+        for i, model in enumerate(cls.PERFORMANCE_COMPARISON["모델크기_순위"], 1):
+            print(f"  {i}. {model}")
+        
+        print("\n💡 추천 용도:")
+        for purpose, model in cls.PERFORMANCE_COMPARISON["추천_용도"].items():
+            print(f"  - {purpose}: {model}")
+        
+        print("\n⚠️  주의사항:")
+        print("  - ✅ 마크: 검증된 모델 (우선 사용 권장)")
+        print("  - YOLOv5/YOLOv8 모델은 ultralytics 라이브러리 필요")
+        print("  - 설치: pip install ultralytics")
+
+    def _check_model_availability(self, model_name):
+        """HuggingFace에서 모델 존재 여부 확인"""
+        try:
+            api_url = f"https://huggingface.co/api/models/{model_name}"
+            response = requests.get(api_url, timeout=10)
+            available = response.status_code == 200
+            if available:
+                print(f"✅ 모델 존재 확인: {model_name}")
+            else:
+                print(f"❌ 모델 존재하지 않음: {model_name}")
+            return available
+        except Exception as e:
+            print(f"⚠️ 모델 존재 확인 실패: {e}")
+            return False
+
+    def _get_fallback_models(self, original_key):
+        """원본 모델 실패시 시도할 대체 모델 목록 생성"""
+        fallbacks = []
+        
+        # 1. 모델 정의에 fallback이 있는 경우
+        if original_key in self.AVAILABLE_MODELS:
+            original_info = self.AVAILABLE_MODELS[original_key]
+            if 'fallback' in original_info:
+                fallbacks.append(original_info['fallback'])
+        
+        # 2. 프레임워크별 추천 대체 모델
+        if original_key in self.AVAILABLE_MODELS:
+            framework = self.AVAILABLE_MODELS[original_key]['framework']
+            if framework == "ultralytics":
+                fallbacks.extend([
+                    "yolov5m", "yolov8s"
+                ])
+            elif framework == "transformers":
+                fallbacks.extend([
+                    "yolos-small", "yolos-rego", "detr-resnet50",
+                    "yolos-base", "detr-resnet-50"
+                ])
+        
+        # 3. 검증된 모델들 추가
+        verified_models = [k for k, v in self.AVAILABLE_MODELS.items() 
+                          if v.get("verified", False) and k != original_key]
+        fallbacks.extend(verified_models)
+        
+        # 중복 제거하고 항상 사용 가능한 모델을 마지막에 추가
+        unique_fallbacks = []
+        for fb in fallbacks:
+            if fb not in unique_fallbacks and fb != original_key:
+                unique_fallbacks.append(fb)
+        
+        # 항상 사용 가능한 모델을 마지막 보루로 추가
+        always_available = [k for k, v in self.AVAILABLE_MODELS.items() 
+                           if v.get("always_available", False)]
+        for aa in always_available:
+            if aa not in unique_fallbacks:
+                unique_fallbacks.append(aa)
+        
+        return unique_fallbacks
+
+    def _try_load_model(self, model_key):
+        """단일 모델 로딩 시도"""
+        if model_key not in self.AVAILABLE_MODELS:
+            raise ValueError(f"모델 키 '{model_key}'가 존재하지 않습니다.")
+        
+        model_info = self.AVAILABLE_MODELS[model_key]
+        framework = model_info["framework"]
+        
+        print(f"🔄 모델 로딩 시도: {model_key}")
+        print(f"   설명: {model_info['description']}")
+        
+        try:
+            if framework == "ultralytics":
+                return self._load_yolo_model(model_info, model_key), framework
+            elif framework == "transformers":
+                return self._load_transformers_model(model_info, model_key), framework
+            else:
+                raise ValueError(f"지원하지 않는 프레임워크: {framework}")
+        except Exception as e:
+            print(f"❌ 모델 '{model_key}' 로딩 실패: {e}")
+            raise
+
+    def _load_transformers_model(self, model_info, model_key):
+        """Transformers 모델 로드"""
+        model_name = model_info["name"]
+        processor_type = model_info["processor_type"]
+        
+        # 모델 존재 여부 확인 (HuggingFace 모델인 경우)
+        if "/" in model_name and not self._check_model_availability(model_name):
+            raise Exception(f"Model {model_name} does not exist on HuggingFace")
+        
+        if processor_type == "DetrImageProcessor":
+            if hasattr(self, 'token') and self.token:
+                self.processor = DetrImageProcessor.from_pretrained(model_name, token=self.token)
+                model = DetrForObjectDetection.from_pretrained(model_name, token=self.token)
+            else:
+                self.processor = DetrImageProcessor.from_pretrained(model_name)
+                model = DetrForObjectDetection.from_pretrained(model_name)
+        
+        elif processor_type == "YolosImageProcessor":
+            if hasattr(self, 'token') and self.token:
+                self.processor = YolosImageProcessor.from_pretrained(model_name, token=self.token)
+                model = YolosForObjectDetection.from_pretrained(model_name, token=self.token)
+            else:
+                self.processor = YolosImageProcessor.from_pretrained(model_name)
+                model = YolosForObjectDetection.from_pretrained(model_name)
+        
+        else:
+            raise ValueError(f"지원하지 않는 프로세서 타입: {processor_type}")
+        
+        return model
+
+    def _load_yolo_model(self, model_info, model_key):
+        """
+        YOLOv5/YOLOv8 모델 로드
+        
+        Args:
+            model_info (dict): 모델 정보
+            model_key (str): 모델 키
+            
+        Returns:
+            model: 로드된 모델
+        """
+        processor_type = model_info["processor_type"]
+        model_name = model_info["name"]
+        
+        # 로컬 경로 확인
+        local_path = model_info.get("local_path")
+        if local_path and os.path.exists(local_path):
+            print(f"로컬 모델 파일 사용: {local_path}")
+            model_path = local_path
+        else:
+            # 직접 다운로드가 필요한 경우
+            if model_info.get("direct_download", False):
+                download_uri = model_info["download_uri"]
+                cache_path = self._get_model_cache_path(model_key)
+                
+                # 캐시된 모델이 없거나 손상된 경우 다운로드
+                if not os.path.exists(cache_path):
+                    print(f"캐시된 모델이 없습니다. 다운로드를 시작합니다.")
+                    self._download_model_from_url(download_uri, cache_path)
+                else:
+                    print(f"캐시된 모델 사용: {cache_path}")
+                
+                model_path = cache_path
+            else:
+                # 기존 방식 (HuggingFace Hub 또는 모델명)
+                model_path = model_name
+        
+        try:
+            if processor_type == "YOLOv5":
+                print("YOLOv5 모델 로드 중...")
+                
+                # 로컬 파일인 경우와 원격 모델인 경우 구분
+                if os.path.exists(model_path):
+                    # 로컬 파일 로드
+                    print(f"로컬 YOLOv5 모델 로드: {model_path}")
+                    import torch
+                    model = torch.hub.load('ultralytics/yolov5', 'custom', path=model_path, force_reload=True, trust_repo=True)
+                else:
+                    # 원격 모델 로드 (기존 방식)
+                    import torch
+                    model = torch.hub.load('ultralytics/yolov5', model_path, force_reload=True, trust_repo=True)
+                
+                self.processor = None  # YOLOv5는 별도 프로세서 불필요
+                return model
+                
+            elif processor_type == "YOLOv8":
+                print("YOLOv8 모델 로드 중...")
+                from ultralytics import YOLO
+                
+                # 로컬 파일 확인
+                if os.path.exists(model_path):
+                    print(f"로컬 YOLOv8 모델 로드: {model_path}")
+                    model = YOLO(model_path)
+                else:
+                    print(f"로컬 모델을 찾을 수 없습니다: {model_path}")
+                    print("기본 YOLOv8 모델을 사용합니다.")
+                    model = YOLO(model_name)
+                
+                self.processor = None  # YOLOv8도 별도 프로세서 불필요
+                return model
+            
+            else:
+                raise ValueError(f"지원하지 않는 YOLO 타입: {processor_type}")
+                
+        except ImportError as e:
+            print(f"YOLO 라이브러리 로드 실패: {e}")
+            print("ultralytics 설치 필요: pip install ultralytics")
+            print("대신 transformers 기반 모델을 사용하세요: -m yolos-small")
+            raise
+        except Exception as e:
+            print(f"YOLO 모델 로드 실패: {e}")
+            
+            # 캐시 파일이 손상된 경우 재다운로드 시도
+            if model_info.get("direct_download", False) and os.path.exists(model_path):
+                print("캐시된 모델이 손상된 것 같습니다. 재다운로드를 시도합니다.")
+                try:
+                    os.remove(model_path)
+                    self._download_model_from_url(model_info["download_uri"], model_path)
+                    
+                    # 재시도
+                    if processor_type == "YOLOv5":
+                        import torch
+                        model = torch.hub.load('ultralytics/yolov5', 'custom', path=model_path, force_reload=True, trust_repo=True)
+                    else:  # YOLOv8
+                        from ultralytics import YOLO
+                        model = YOLO(model_path)
+                    
+                    return model
+                    
+                except Exception as retry_error:
+                    print(f"재다운로드도 실패: {retry_error}")
+            
+            raise
+
+    def _load_with_fallbacks(self, original_key):
+        """대체 모델 시스템을 사용한 모델 로딩"""
+        # 원본 모델 시도
+        try:
+            model, framework = self._try_load_model(original_key)
+            return model, framework
+        except Exception as original_error:
+            print(f"🔄 원본 모델 '{original_key}' 실패, 대체 모델을 시도합니다...")
+            print(f"   원본 오류: {original_error}")
+        
+        # 대체 모델들 시도
+        fallback_models = self._get_fallback_models(original_key)
+        
+        for fallback_key in fallback_models:
+            try:
+                print(f"🔄 대체 모델 시도: {fallback_key}")
+                model, framework = self._try_load_model(fallback_key)
+                print(f"✅ 대체 모델 성공: {fallback_key}")
+                self.model_key = fallback_key  # 성공한 모델로 키 업데이트
+                return model, framework
+            except Exception as fallback_error:
+                print(f"❌ 대체 모델 '{fallback_key}' 실패: {fallback_error}")
+                continue
+        
+        # 모든 대체 모델 실패시 최후의 수단
+        raise Exception(
+            f"원본 모델 '{original_key}' 및 모든 대체 모델 로딩에 실패했습니다. "
+            "다음을 확인해주세요:\n"
+            "1. 인터넷 연결 상태\n"
+            "2. 필수 라이브러리 설치: pip install ultralytics transformers\n"
+            "3. --list-models로 사용 가능한 모델 확인"
+        )
+
+    def _get_model_cache_path(self, model_key):
+        """
+        모델 캐시 경로 생성
+        
+        Args:
+            model_key (str): 모델 키
+            
+        Returns:
+            str: 캐시 파일 경로
+        """
+        cache_dir = os.path.expanduser("~/.cache/license_plate_models")
+        model_filename = f"{model_key}.pt"
+        return os.path.join(cache_dir, model_filename)
+
+    def _download_model_from_url(self, url, local_path):
+        """
+        URL에서 모델 파일을 다운로드
+        
+        Args:
+            url (str): 다운로드할 모델 URL
+            local_path (str): 저장할 로컬 경로
+        """
+        try:
+            print(f"모델 다운로드 중: {url}")
+            
+            # SSL 컨텍스트 설정 (인증서 검증 우회)
+            ssl_context = ssl.create_default_context()
+            ssl_context.check_hostname = False
+            ssl_context.verify_mode = ssl.CERT_NONE
+            
+            # 디렉토리 생성
+            os.makedirs(os.path.dirname(local_path), exist_ok=True)
+            
+            # 다운로드 진행률 표시 함수
+            def show_progress(block_num, block_size, total_size):
+                downloaded = block_num * block_size
+                if total_size > 0:
+                    percent = min(100, (downloaded * 100) // total_size)
+                    print(f"\r다운로드 진행률: {percent}% ({downloaded // (1024*1024)}MB / {total_size // (1024*1024)}MB)", end='')
+                else:
+                    print(f"\r다운로드 중: {downloaded // (1024*1024)}MB", end='')
+            
+            # 다운로드 실행
+            urllib.request.urlretrieve(url, local_path, reporthook=show_progress)
+            print(f"\n모델 다운로드 완료: {local_path}")
+            
+        except Exception as e:
+            print(f"\n모델 다운로드 실패: {e}")
+            raise
+
+    def __init__(self, model_key="yolos-small", local_model_path=None, force_cpu=False, token=None):
         """
         번호판 탐지 및 YOLO 라벨링 파일 생성기 초기화
         
         Args:
-            model_name (str): 사용할 HuggingFace 모델명
+            model_key (str): 사용할 모델 키 (기본값: yolos-small)
             local_model_path (str): 로컬 모델 경로 (오프라인 사용시)
+            force_cpu (bool): GPU 사용을 강제로 비활성화
+            token (str): HuggingFace 액세스 토큰 (private 모델 접근시)
         """
-        print("모델 로딩 중...")
+        print("\n모델 초기화 중...")
+        
+        # 토큰 저장
+        self.token = token
+        
+        # 모델 정보 확인 및 기본값 설정
+        if model_key not in self.AVAILABLE_MODELS and not local_model_path:
+            print(f"지원하지 않는 모델 키: {model_key}")
+            print("기본 안정 모델로 변경합니다: yolos-small")
+            model_key = "yolos-small"
+        
+        # GPU 사용 가능 여부 확인 및 설정
+        self.device = self._setup_device(force_cpu)
+        print(f"사용 중인 디바이스: {self.device}")
+        
+        # 모델 프레임워크 및 키 추적 변수 초기화
+        self.model_framework = None
+        self.model_key = model_key
         
         try:
             if local_model_path and os.path.exists(local_model_path):
@@ -25,18 +538,126 @@ class LicensePlateYOLOLabeler:
                 print(f"로컬 모델 로드: {local_model_path}")
                 self.processor = YolosImageProcessor.from_pretrained(local_model_path)
                 self.model = YolosForObjectDetection.from_pretrained(local_model_path)
+                self.model_framework = "transformers"
             else:
+                # 선택된 모델 정보 가져오기
+                model_info = self.AVAILABLE_MODELS[model_key]
+                model_name = model_info["name"]
+                processor_type = model_info["processor_type"]
+                framework = model_info["framework"]
+                self.model_framework = framework
+                
                 # 온라인에서 모델 다운로드/로드
-                print(f"HuggingFace에서 모델 다운로드: {model_name}")
-                self.processor = YolosImageProcessor.from_pretrained(model_name)
-                self.model = YolosForObjectDetection.from_pretrained(model_name)
+                print(f"선택된 모델: {model_key}")
+                print(f"모델 설명: {model_info['description']}")
+                print(f"프레임워크: {framework}")
+                print(f"프로세서 타입: {processor_type}")
+                
+                if model_info.get("direct_download", False):
+                    print(f"직접 다운로드 URI: {model_info['download_uri']}")
+                else:
+                    print(f"HuggingFace에서 모델 다운로드: {model_name}")
+                    print(f"다운로드 URI: {model_info['download_uri']}")
+                
+                if token:
+                    print("HuggingFace 토큰을 사용하여 인증합니다.")
+                
+                # 프레임워크별 모델 로드
+                if framework == "ultralytics":
+                    try:
+                        # YOLOv5/YOLOv8 모델 처리
+                        self.model = self._load_yolo_model(model_info, model_key)
+                        print("⚠️  주의: YOLO 모델은 현재 버전에서 제한적으로 지원됩니다.")
+                        print("완전한 지원을 위해서는 transformers 기반 모델을 사용하세요.")
+                    except ImportError as e:
+                        print(f"YOLO 라이브러리 로드 실패: {e}")
+                        print("ultralytics 설치 필요: pip install ultralytics")
+                        print("대신 transformers 기반 모델을 사용하세요: -m yolos-small")
+                        raise
+                
+                elif framework == "transformers":
+                    try:
+                        if processor_type == "DetrImageProcessor":
+                            if token:
+                                self.processor = DetrImageProcessor.from_pretrained(model_name, token=token)
+                                self.model = DetrForObjectDetection.from_pretrained(model_name, token=token)
+                            else:
+                                self.processor = DetrImageProcessor.from_pretrained(model_name)
+                                self.model = DetrForObjectDetection.from_pretrained(model_name)
+                        
+                        elif processor_type == "YolosImageProcessor":
+                            if token:
+                                self.processor = YolosImageProcessor.from_pretrained(model_name, token=token)
+                                self.model = YolosForObjectDetection.from_pretrained(model_name, token=token)
+                            else:
+                                self.processor = YolosImageProcessor.from_pretrained(model_name)
+                                self.model = YolosForObjectDetection.from_pretrained(model_name)
+                        
+                        else:
+                            raise ValueError(f"지원하지 않는 프로세서 타입: {processor_type}")
+                    except ImportError as e:
+                        print(f"Transformers 라이브러리 로드 실패: {e}")
+                        print("transformers 설치 필요: pip install transformers")
+                        raise
+                
+                else:
+                    raise ValueError(f"지원하지 않는 프레임워크: {framework}")
             
-            print("모델 로딩 완료!")
+            # Transformers 모델만 디바이스로 이동
+            if hasattr(self, 'model') and hasattr(self.model, 'to') and self.model_framework == "transformers":
+                self.model = self.model.to(self.device)
+                print(f"모델이 {self.device}로 이동되었습니다.")
+            
+            print("🎉 모델 초기화 완료!")
+            print(f"✅ 최종 사용 모델: {self.model_key}")
+            if self.model_key in self.AVAILABLE_MODELS:
+                final_info = self.AVAILABLE_MODELS[self.model_key]
+                print(f"📋 모델 설명: {final_info['description']}")
+                print(f"⚡ 성능: {final_info['performance']}")
             
         except Exception as e:
-            print(f"모델 로딩 실패: {e}")
-            print("인터넷 연결을 확인하거나 로컬 모델 경로를 지정해주세요.")
+            print(f"\n❌ 모델 초기화 실패: {e}")
+            print("\n해결 방법:")
+            print("1. 필수 라이브러리 설치:")
+            print("   pip install transformers huggingface-hub ultralytics torch torchvision")
+            print("2. 인터넷 연결 확인")
+            print("3. 다른 모델 시도: python license_plate_labeler.py --list-models")
             raise
+
+    def _setup_device(self, force_cpu=False):
+        """
+        사용할 디바이스 설정 (GPU/CPU)
+        
+        Args:
+            force_cpu (bool): CPU 사용 강제
+            
+        Returns:
+            torch.device: 사용할 디바이스
+        """
+        if force_cpu:
+            print("CPU 사용이 강제로 설정되었습니다.")
+            return torch.device("cpu")
+        
+        if torch.cuda.is_available():
+            gpu_count = torch.cuda.device_count()
+            current_gpu = torch.cuda.current_device()
+            gpu_name = torch.cuda.get_device_name(current_gpu)
+            print(f"CUDA 사용 가능: {gpu_count}개의 GPU 감지")
+            print(f"현재 GPU: {gpu_name} (디바이스 {current_gpu})")
+            
+            # GPU 메모리 정보 출력
+            memory_allocated = torch.cuda.memory_allocated(current_gpu) / 1024**3
+            memory_cached = torch.cuda.memory_reserved(current_gpu) / 1024**3
+            print(f"GPU 메모리 사용량: {memory_allocated:.2f}GB 할당됨, {memory_cached:.2f}GB 예약됨")
+            
+            return torch.device(f"cuda:{current_gpu}")
+        else:
+            print("CUDA를 사용할 수 없습니다. CPU를 사용합니다.")
+            print("GPU 사용을 위해서는 다음을 확인하세요:")
+            print("1. NVIDIA GPU가 설치되어 있는지")
+            print("2. CUDA가 설치되어 있는지")
+            print("3. PyTorch가 CUDA 지원으로 설치되어 있는지")
+            return torch.device("cpu")
     
     def get_optimal_size(self, image_width, image_height, max_longest_edge=800, min_longest_edge=400):
         """
@@ -73,74 +694,281 @@ class LicensePlateYOLOLabeler:
             "longest_edge": optimal_longest_edge,
             "shortest_edge": optimal_shortest_edge
         }
-    
-    def detect_license_plates(self, image_path, confidence_threshold=0.5):
+
+    def detect_license_plates_yolo(self, image_path, confidence_threshold=0.5):
         """
-        이미지에서 번호판 탐지 (사이즈 최적화 포함)
+        YOLO 모델을 사용한 번호판 탐지
         
         Args:
             image_path (str): 이미지 파일 경로
             confidence_threshold (float): 신뢰도 임계값
             
         Returns:
-            list: 탐지된 번호판의 바운딩 박스 정보
+            tuple: (detections, original_size)
         """
-        # 이미지 로드
-        image = Image.open(image_path).convert("RGB")
-        original_size = image.size  # (width, height)
-        
-        # 최적 처리 크기 계산
-        optimal_size = self.get_optimal_size(original_size[0], original_size[1])
-        
-        print(f"원본 크기: {original_size}, 처리 크기: {optimal_size}")
-        
-        # 모델 입력 준비 (올바른 size 형식 사용)
         try:
-            # 새로운 방식: size parameter 사용 (shortest_edge와 longest_edge 모두 포함)
-            inputs = self.processor(
-                images=image, 
-                size=optimal_size, 
-                return_tensors="pt"
-            )
-        except (TypeError, ValueError) as e:
-            # 호환성을 위한 fallback
-            print(f"새로운 size 파라미터 오류: {e}")
-            print("기본 방식을 사용합니다.")
+            # 이미지 로드
+            with Image.open(image_path) as image:
+                image = image.convert("RGB")
+                original_size = image.size  # (width, height)
+            
+            print(f"원본 크기: {original_size}")
+            
+            # 모델 타입에 따라 다른 방식으로 추론
+            model_info = self.AVAILABLE_MODELS[self.model_key]
+            processor_type = model_info["processor_type"]
+            
+            if processor_type == "YOLOv5":
+                # YOLOv5의 경우 모델 속성으로 confidence threshold 설정
+                original_conf = getattr(self.model, 'conf', 0.25)  # 원래 값 백업
+                self.model.conf = confidence_threshold
+                
+                try:
+                    results = self.model(image_path)
+                    
+                    detections = []
+                    # YOLOv5 결과 처리
+                    if hasattr(results, 'pandas'):
+                        try:
+                            df = results.pandas().xyxy[0]
+                            for _, row in df.iterrows():
+                                detection = {
+                                    'confidence': round(float(row['confidence']), 3),
+                                    'label': int(row['class']),
+                                    'bbox': [float(row['xmin']), float(row['ymin']), 
+                                            float(row['xmax']), float(row['ymax'])]
+                                }
+                                detections.append(detection)
+                        except Exception as pandas_error:
+                            print(f"pandas 접근 실패: {pandas_error}, 대안 방법 시도")
+                            if hasattr(results, 'pred') and len(results.pred) > 0:
+                                pred = results.pred[0]
+                                for detection in pred:
+                                    x1, y1, x2, y2, conf, cls = detection.tolist()
+                                    if conf >= confidence_threshold:
+                                        detection_dict = {
+                                            'confidence': round(conf, 3),
+                                            'label': int(cls),
+                                            'bbox': [x1, y1, x2, y2]
+                                        }
+                                        detections.append(detection_dict)
+                    else:
+                        if hasattr(results, 'pred') and len(results.pred) > 0:
+                            pred = results.pred[0]
+                            for detection in pred:
+                                x1, y1, x2, y2, conf, cls = detection.tolist()
+                                if conf >= confidence_threshold:
+                                    detection_dict = {
+                                        'confidence': round(conf, 3),
+                                        'label': int(cls),
+                                        'bbox': [x1, y1, x2, y2]
+                                    }
+                                    detections.append(detection_dict)
+                finally:
+                    # 원래 confidence 값으로 복원
+                    self.model.conf = original_conf
+                
+            elif processor_type == "YOLOv8":
+                try:
+                    results = self.model(image_path, conf=confidence_threshold)
+                except TypeError:
+                    results = self.model(image_path)
+                
+                detections = []
+                for result in results:
+                    boxes = result.boxes
+                    if boxes is not None:
+                        for box in boxes:
+                            conf = float(box.conf.item())
+                            if conf >= confidence_threshold:
+                                detection = {
+                                    'confidence': round(conf, 3),
+                                    'label': int(box.cls.item()),
+                                    'bbox': box.xyxy[0].cpu().numpy().tolist()
+                                }
+                                detections.append(detection)
+            
+            else:
+                raise ValueError(f"지원하지 않는 YOLO 타입: {processor_type}")
+            
+            return detections, original_size
+            
+        except Exception as e:
+            print(f"YOLO 모델 추론 실패: {e}")
+            raise
+        finally:
+            # 메모리 정리
+            if 'results' in locals():
+                del results
+            if 'detections' in locals():
+                del detections
+            torch.cuda.empty_cache()
+
+    def detect_license_plates_transformers(self, image_path, confidence_threshold=0.5):
+        """
+        Transformers 모델을 사용한 번호판 탐지
+        
+        Args:
+            image_path (str): 이미지 파일 경로
+            confidence_threshold (float): 신뢰도 임계값
+            
+        Returns:
+            tuple: (detections, original_size)
+        """
+        try:
+            # 이미지 로드
+            with Image.open(image_path) as image:
+                image = image.convert("RGB")
+                original_size = image.size  # (width, height)
+            
+            # 최적 처리 크기 계산
+            optimal_size = self.get_optimal_size(original_size[0], original_size[1])
+            
+            print(f"원본 크기: {original_size}, 처리 크기: {optimal_size}")
+            
+            # 모델 입력 준비
             try:
-                # 구버전 호환성을 위한 시도
-                inputs = self.processor(images=image, return_tensors="pt")
-            except Exception as fallback_error:
-                print(f"기본 방식도 실패: {fallback_error}")
-                # 마지막 시도: 명시적으로 height, width 설정
-                height = optimal_size["shortest_edge"] if original_size[1] < original_size[0] else optimal_size["longest_edge"]
-                width = optimal_size["longest_edge"] if original_size[0] > original_size[1] else optimal_size["shortest_edge"]
                 inputs = self.processor(
                     images=image, 
-                    size={"height": height, "width": width}, 
+                    size=optimal_size, 
                     return_tensors="pt"
                 )
-        
-        # 추론 실행
-        with torch.no_grad():
-            outputs = self.model(**inputs)
-        
-        # 결과 후처리
-        target_sizes = torch.tensor([original_size[::-1]])  # (height, width)
-        results = self.processor.post_process_object_detection(
-            outputs, target_sizes=target_sizes, threshold=confidence_threshold
-        )[0]
-        
-        detections = []
-        for score, label, box in zip(results["scores"], results["labels"], results["boxes"]):
-            box = [round(i, 2) for i in box.tolist()]
-            detection = {
-                'confidence': round(score.item(), 3),
-                'label': label.item(),
-                'bbox': box  # [x_min, y_min, x_max, y_max]
-            }
-            detections.append(detection)
+            except (TypeError, ValueError) as e:
+                print(f"새로운 size 파라미터 오류: {e}")
+                print("기본 방식을 사용합니다.")
+                try:
+                    inputs = self.processor(images=image, return_tensors="pt")
+                except Exception as fallback_error:
+                    print(f"기본 방식도 실패: {fallback_error}")
+                    height = optimal_size["shortest_edge"] if original_size[1] < original_size[0] else optimal_size["longest_edge"]
+                    width = optimal_size["longest_edge"] if original_size[0] > original_size[1] else optimal_size["shortest_edge"]
+                    inputs = self.processor(
+                        images=image, 
+                        size={"height": height, "width": width}, 
+                        return_tensors="pt"
+                    )
             
-        return detections, original_size
+            # 입력 텐서를 디바이스로 이동
+            inputs = {k: v.to(self.device) for k, v in inputs.items()}
+            
+            # 추론 실행
+            try:
+                with torch.no_grad():
+                    outputs = self.model(**inputs)
+            except RuntimeError as e:
+                if "out of memory" in str(e).lower():
+                    print(f"GPU 메모리 부족: {e}")
+                    print("더 작은 이미지 크기로 다시 시도하거나 --max-size를 줄여보세요.")
+                    print("또는 CPU 모드로 실행하려면 --force-cpu 옵션을 사용하세요.")
+                    raise
+                else:
+                    raise
+            
+            # 결과 후처리를 위해 CPU로 이동
+            target_sizes = torch.tensor([original_size[::-1]])  # (height, width)
+            
+            # outputs를 CPU로 이동하여 후처리
+            if isinstance(outputs, dict):
+                outputs_cpu = {k: v.cpu() if isinstance(v, torch.Tensor) else v for k, v in outputs.items()}
+            else:
+                outputs_cpu = {
+                    'logits': outputs.logits.cpu(),
+                    'pred_boxes': outputs.pred_boxes.cpu()
+                }
+            
+            # 후처리 실행
+            try:
+                results = self.processor.post_process_object_detection(
+                    outputs_cpu, target_sizes=target_sizes, threshold=confidence_threshold
+                )[0]
+            except Exception as e:
+                print(f"후처리 오류: {e}")
+                print("outputs 구조:", type(outputs))
+                if isinstance(outputs, dict):
+                    print("outputs keys:", list(outputs.keys()))
+                
+                # 수동으로 결과 처리
+                try:
+                    if isinstance(outputs, dict):
+                        logits = outputs['logits'].cpu()
+                        pred_boxes = outputs['pred_boxes'].cpu()
+                    else:
+                        logits = outputs.logits.cpu()
+                        pred_boxes = outputs.pred_boxes.cpu()
+                    
+                    # 간단한 후처리
+                    probs = torch.nn.functional.softmax(logits, -1)
+                    scores, labels = probs[..., :-1].max(-1)
+                    
+                    # confidence threshold 적용
+                    keep = scores > confidence_threshold
+                    scores = scores[keep]
+                    labels = labels[keep]
+                    boxes = pred_boxes[keep]
+                    
+                    # 좌표 변환
+                    img_w, img_h = target_sizes[0][1], target_sizes[0][0]
+                    scale_fct = torch.stack([img_w, img_h, img_w, img_h], dim=0)
+                    boxes = boxes * scale_fct
+                    
+                    # cxcywh를 xyxy로 변환
+                    boxes[:, :2] -= boxes[:, 2:] / 2
+                    boxes[:, 2:] += boxes[:, :2]
+                    
+                    results = {
+                        'scores': scores,
+                        'labels': labels,
+                        'boxes': boxes
+                    }
+                    
+                except Exception as manual_error:
+                    print(f"수동 처리도 실패: {manual_error}")
+                    raise
+            
+            detections = []
+            for score, label, box in zip(results["scores"], results["labels"], results["boxes"]):
+                box = [round(i, 2) for i in box.tolist()]
+                detection = {
+                    'confidence': round(score.item(), 3),
+                    'label': label.item(),
+                    'bbox': box
+                }
+                detections.append(detection)
+            
+            return detections, original_size
+            
+        except Exception as e:
+            print(f"Transformers 모델 추론 실패: {e}")
+            raise
+        finally:
+            # 메모리 정리
+            if 'inputs' in locals():
+                del inputs
+            if 'outputs' in locals():
+                del outputs
+            if 'outputs_cpu' in locals():
+                del outputs_cpu
+            if 'results' in locals():
+                del results
+            torch.cuda.empty_cache()
+
+    def detect_license_plates(self, image_path, confidence_threshold=0.5):
+        """
+        이미지에서 번호판 탐지 (모델 프레임워크에 따라 적절한 방법 선택)
+        
+        Args:
+            image_path (str): 이미지 파일 경로
+            confidence_threshold (float): 신뢰도 임계값
+            
+        Returns:
+            tuple: (detections, original_size) 탐지된 번호판의 바운딩 박스 정보와 원본 이미지 크기
+        """
+        if self.model_framework == "ultralytics":
+            return self.detect_license_plates_yolo(image_path, confidence_threshold)
+        elif self.model_framework == "transformers":
+            return self.detect_license_plates_transformers(image_path, confidence_threshold)
+        else:
+            raise ValueError(f"지원하지 않는 모델 프레임워크: {self.model_framework}")
     
     def convert_to_yolo_format(self, bbox, image_width, image_height):
         """
@@ -192,8 +1020,73 @@ class LicensePlateYOLOLabeler:
                 )
                 
                 # YOLO 형식: class_id x_center y_center width height
-                line = f"{class_id} {x_center:.6f} {y_center:.6f} {width:.6f} {height:.6f}\n"
-                f.write(line)
+                f.write(f"{class_id} {x_center:.6f} {y_center:.6f} {width:.6f} {height:.6f}\n")
+    
+    def process_single_image(self, image_path, output_dir, confidence_threshold=0.5, 
+                           save_visualization=True, undetected_dir=None):
+        """
+        단일 이미지 처리 (사이즈 정보 출력 포함)
+        
+        Args:
+            image_path (str): 입력 이미지 경로
+            output_dir (str): 출력 디렉토리
+            confidence_threshold (float): 신뢰도 임계값
+            save_visualization (bool): 시각화 결과 저장 여부
+            undetected_dir (str): 탐지되지 않은 이미지 저장 디렉토리 (None이면 저장 안함)
+        """
+        # 출력 디렉토리 생성
+        os.makedirs(output_dir, exist_ok=True)
+        
+        # 파일명 및 확장자 추출
+        image_path_obj = Path(image_path)
+        image_name = image_path_obj.stem
+        image_ext = image_path_obj.suffix
+        
+        print(f"처리 중: {image_path}")
+        
+        # 이미지 크기 정보 출력
+        with Image.open(image_path) as img:
+            width, height = img.size
+            print(f"이미지 크기: {width}x{height}")
+        
+        # 번호판 탐지
+        detections, image_size = self.detect_license_plates(image_path, confidence_threshold)
+        
+        if len(detections) == 0:
+            print(f"번호판이 탐지되지 않았습니다: {image_path}")
+            
+            # 탐지되지 않은 이미지 저장 (지정된 디렉토리가 있을 때만)
+            if undetected_dir:
+                os.makedirs(undetected_dir, exist_ok=True)
+                undetected_path = os.path.join(undetected_dir, f"{image_name}_undetected{image_ext}")
+                try:
+                    shutil.copy2(image_path, undetected_path)
+                    print(f"탐지되지 않은 이미지 저장: {undetected_path}")
+                except Exception as e:
+                    print(f"이미지 복사 실패: {e}")
+            return
+        
+        # 원본 이미지를 output 디렉토리에 복사
+        output_image_path = os.path.join(output_dir, f"{image_name}{image_ext}")
+        try:
+            shutil.copy2(image_path, output_image_path)
+            print(f"원본 이미지 복사: {output_image_path}")
+        except Exception as e:
+            print(f"원본 이미지 복사 실패: {e}")
+        
+        # YOLO 라벨 파일 저장 (원본 이미지명과 동일하게)
+        label_path = os.path.join(output_dir, f"{image_name}.txt")
+        self.save_yolo_label(detections, image_size, label_path)
+        print(f"라벨 파일 저장: {label_path}")
+        
+        # 시각화 결과 저장 (선택사항)
+        if save_visualization:
+            vis_path = os.path.join(output_dir, f"{image_name}_detected.jpg")
+            self.visualize_detections(image_path, detections, vis_path)
+        
+        print(f"탐지된 번호판 수: {len(detections)}")
+        for i, detection in enumerate(detections):
+            print(f"  번호판 {i+1}: 신뢰도 {detection['confidence']:.3f}")
     
     def visualize_detections(self, image_path, detections, output_path=None):
         """
@@ -226,62 +1119,6 @@ class LicensePlateYOLOLabeler:
             print(f"시각화 결과 저장: {output_path}")
         
         return image_rgb
-    
-    def process_single_image(self, image_path, output_dir, confidence_threshold=0.5, 
-                           save_visualization=True, undetected_dir=None):
-        """
-        단일 이미지 처리 (사이즈 정보 출력 포함)
-        
-        Args:
-            image_path (str): 입력 이미지 경로
-            output_dir (str): 출력 디렉토리
-            confidence_threshold (float): 신뢰도 임계값
-            save_visualization (bool): 시각화 결과 저장 여부
-            undetected_dir (str): 탐지되지 않은 이미지 저장 디렉토리 (None이면 저장 안함)
-        """
-        # 출력 디렉토리 생성
-        os.makedirs(output_dir, exist_ok=True)
-        
-        # 파일명 추출
-        image_name = Path(image_path).stem
-        
-        print(f"처리 중: {image_path}")
-        
-        # 이미지 크기 정보 출력
-        with Image.open(image_path) as img:
-            width, height = img.size
-            print(f"이미지 크기: {width}x{height}")
-        
-        # 번호판 탐지
-        detections, image_size = self.detect_license_plates(image_path, confidence_threshold)
-        
-        if len(detections) == 0:
-            print(f"번호판이 탐지되지 않았습니다: {image_path}")
-            
-            # 탐지되지 않은 이미지 저장 (지정된 디렉토리가 있을 때만)
-            if undetected_dir:
-                os.makedirs(undetected_dir, exist_ok=True)
-                undetected_path = os.path.join(undetected_dir, f"{image_name}_undetected.jpg")
-                try:
-                    shutil.copy2(image_path, undetected_path)
-                    print(f"탐지되지 않은 이미지 저장: {undetected_path}")
-                except Exception as e:
-                    print(f"이미지 복사 실패: {e}")
-            return
-        
-        # YOLO 라벨 파일 저장
-        label_path = os.path.join(output_dir, f"{image_name}.txt")
-        self.save_yolo_label(detections, image_size, label_path)
-        print(f"라벨 파일 저장: {label_path}")
-        
-        # 시각화 결과 저장 (선택사항)
-        if save_visualization:
-            vis_path = os.path.join(output_dir, f"{image_name}_detected.jpg")
-            self.visualize_detections(image_path, detections, vis_path)
-        
-        print(f"탐지된 번호판 수: {len(detections)}")
-        for i, detection in enumerate(detections):
-            print(f"  번호판 {i+1}: 신뢰도 {detection['confidence']:.3f}")
     
     def process_directory(self, input_dir, output_dir, confidence_threshold=0.5,
                          save_visualization=True, undetected_dir=None, image_extensions=None):
@@ -319,58 +1156,147 @@ class LicensePlateYOLOLabeler:
             )
 
 def main():
-    parser = argparse.ArgumentParser(description="번호판 탐지 및 YOLO 라벨 생성")
-    parser.add_argument("--input", "-i", required=True, 
-                       help="입력 이미지 파일 또는 디렉토리 경로")
-    parser.add_argument("--output", "-o", required=True,
-                       help="출력 디렉토리 경로")
-    parser.add_argument("--confidence", "-c", type=float, default=0.5,
-                       help="신뢰도 임계값 (기본값: 0.5)")
-    parser.add_argument("--no-viz", action="store_true",
-                       help="시각화 결과 저장 안함")
-    parser.add_argument("--undetected-dir", "-e", type=str,
-                       help="탐지되지 않은 이미지를 저장할 디렉토리 경로")
-    parser.add_argument("--max-size", type=int, default=800,
-                       help="처리할 최대 이미지 크기 (longest edge, 기본값: 800)")
-    
-    args = parser.parse_args()
-    
-    # 라벨러 초기화
-    labeler = LicensePlateYOLOLabeler()
-    
-    # 사용자가 지정한 최대 크기 적용
-    if hasattr(args, 'max_size'):
-        original_get_optimal_size = labeler.get_optimal_size
-        def custom_get_optimal_size(width, height, max_longest_edge=args.max_size, min_longest_edge=400):
-            return original_get_optimal_size(width, height, max_longest_edge, min_longest_edge)
-        labeler.get_optimal_size = custom_get_optimal_size
-    
-    # 입력이 파일인지 디렉토리인지 확인
-    input_path = Path(args.input)
-    
-    if input_path.is_file():
-        # 단일 파일 처리
-        labeler.process_single_image(
-            args.input, args.output, args.confidence, not args.no_viz, args.undetected_dir
+    try:
+        # 모델 키 목록을 동적으로 가져오기
+        available_model_keys = list(LicensePlateYOLOLabeler.AVAILABLE_MODELS.keys())
+        
+        parser = argparse.ArgumentParser(
+            description="번호판 탐지 및 YOLO 라벨 생성기",
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+            epilog="""
+사용 예시:
+  모델 목록 확인:           python %(prog)s --list-models
+  기본 모델 사용:           python %(prog)s -i image.jpg -o output_dir
+  특정 모델 선택:           python %(prog)s -i image.jpg -o output_dir -m yolos-small
+  신뢰도 조정:              python %(prog)s -i input_dir -o output_dir -c 0.7
+  시각화 없이:              python %(prog)s -i input_dir -o output_dir --no-viz
+  미탐지 이미지 저장:       python %(prog)s -i input_dir -o output_dir -e undetected_dir
+  CPU 강제 사용:            python %(prog)s -i input_dir -o output_dir --force-cpu
+
+추천 모델:
+  - 실시간 처리: yolov5m
+  - 최고 정확도: detr-resnet50
+  - 균형잡힌 성능: yolos-small
+
+필수 라이브러리 설치:
+  pip install transformers huggingface-hub ultralytics torch torchvision opencv-python
+            """
         )
-    elif input_path.is_dir():
-        # 디렉토리 처리
-        labeler.process_directory(
-            args.input, args.output, args.confidence, not args.no_viz, args.undetected_dir
-        )
-    else:
-        print(f"입력 경로가 유효하지 않습니다: {args.input}")
+        
+        parser.add_argument("--input", "-i", 
+                           help="입력 이미지 파일 또는 디렉토리 경로")
+        parser.add_argument("--output", "-o",
+                           help="출력 디렉토리 경로")
+        parser.add_argument("--model", "-m", type=str, default="yolos-small",
+                           choices=available_model_keys,
+                           help=f"사용할 모델 선택 (기본값: yolos-small)")
+        parser.add_argument("--token", "-t", type=str,
+                           help="HuggingFace 액세스 토큰 (private 모델 접근시 필요)")
+        parser.add_argument("--list-models", action="store_true",
+                           help="사용 가능한 모델 목록과 사용 예시 출력")
+        parser.add_argument("--local-model", type=str,
+                           help="로컬 모델 경로 (오프라인 사용시)")
+        parser.add_argument("--confidence", "-c", type=float, default=0.5,
+                           help="신뢰도 임계값 (기본값: 0.5)")
+        parser.add_argument("--no-viz", action="store_true",
+                           help="시각화 결과 저장 안함")
+        parser.add_argument("--undetected-dir", "-e", type=str,
+                           help="탐지되지 않은 이미지를 저장할 디렉토리 경로")
+        parser.add_argument("--max-size", type=int, default=800,
+                           help="처리할 최대 이미지 크기 (longest edge, 기본값: 800)")
+        parser.add_argument("--force-cpu", action="store_true",
+                           help="GPU 사용을 비활성화하고 CPU만 사용")
+        
+        args = parser.parse_args()
+        
+        # 모델 목록 출력 요청시
+        if args.list_models:
+            LicensePlateYOLOLabeler.list_available_models()
+            return
+        
+        # input과 output이 필수인지 확인 (--list-models가 아닌 경우에만)
+        if not args.input or not args.output:
+            parser.error("--input과 --output 인수가 필요합니다. (--list-models 사용시 제외)")
+        
+        # 입력 경로 존재 확인
+        if not os.path.exists(args.input):
+            parser.error(f"입력 경로가 존재하지 않습니다: {args.input}")
+        
+        # 출력 디렉토리 생성
+        os.makedirs(args.output, exist_ok=True)
+        
+        # 모델 키 유효성 검사 (로컬 모델이 아닌 경우)
+        if not args.local_model and args.model not in available_model_keys:
+            print(f"오류: 지원하지 않는 모델 키 '{args.model}'")
+            print(f"사용 가능한 모델: {', '.join(available_model_keys[:10])}...")
+            print("전체 모델 목록: python license_plate_labeler.py --list-models")
+            return
+        
+        # 라벨러 초기화
+        try:
+            print("\n=== 번호판 탐지 YOLO 라벨링 생성기 ===")
+            print(f"선택된 모델: {args.model}")
+            print(f"입력 경로: {args.input}")
+            print(f"출력 경로: {args.output}")
+            print(f"신뢰도 임계값: {args.confidence}")
+            print(f"CPU 강제 사용: {args.force_cpu}")
+            
+            labeler = LicensePlateYOLOLabeler(
+                model_key=args.model, 
+                local_model_path=args.local_model, 
+                force_cpu=args.force_cpu,
+                token=args.token
+            )
+        except Exception as e:
+            print(f"\n❌ 모델 초기화 실패: {e}")
+            print("\n해결 방법:")
+            print("1. 필수 라이브러리 설치: pip install transformers huggingface-hub ultralytics")
+            print("2. 인터넷 연결 확인")
+            print("3. 다른 모델 시도해보세요 (--model 옵션)")
+            return
+        
+        # 사용자가 지정한 최대 크기 적용
+        if hasattr(args, 'max_size'):
+            original_get_optimal_size = labeler.get_optimal_size
+            def custom_get_optimal_size(width, height, max_longest_edge=args.max_size, min_longest_edge=400):
+                return original_get_optimal_size(width, height, max_longest_edge, min_longest_edge)
+            labeler.get_optimal_size = custom_get_optimal_size
+        
+        # 입력이 파일인지 디렉토리인지 확인
+        input_path = Path(args.input)
+        
+        try:
+            if input_path.is_file():
+                # 단일 파일 처리
+                print(f"\n단일 이미지 처리 중: {args.input}")
+                labeler.process_single_image(
+                    args.input, args.output, args.confidence, not args.no_viz, args.undetected_dir
+                )
+            elif input_path.is_dir():
+                # 디렉토리 처리
+                print(f"\n디렉토리 처리 중: {args.input}")
+                labeler.process_directory(
+                    args.input, args.output, args.confidence, not args.no_viz, args.undetected_dir
+                )
+            else:
+                print(f"입력 경로가 유효하지 않습니다: {args.input}")
+                return
+                
+            print("\n✅ 처리가 완료되었습니다!")
+            print(f"결과가 저장된 경로: {args.output}")
+            
+        except Exception as e:
+            print(f"\n❌ 처리 중 오류 발생: {e}")
+            print("\n해결 방법:")
+            print("1. 입력 이미지가 올바른 형식인지 확인")
+            print("2. 신뢰도 임계값을 조정해보세요 (--confidence 옵션)")
+            print("3. 다른 모델을 시도해보세요 (--model 옵션)")
+            return
+            
+    except Exception as e:
+        print(f"\n❌ 예상치 못한 오류 발생: {e}")
+        print("\n프로그램을 종료합니다.")
+        return
 
 if __name__ == "__main__":
-    # 예제 사용법
-    print("=== 번호판 탐지 YOLO 라벨링 생성기 ===")
-    print("\n사용법:")
-    print("1. 단일 이미지: python script.py -i image.jpg -o output_dir")
-    print("2. 디렉토리: python script.py -i input_dir -o output_dir")
-    print("3. 신뢰도 조정: python script.py -i input_dir -o output_dir -c 0.7")
-    print("4. 시각화 없이: python script.py -i input_dir -o output_dir --no-viz")
-    print("5. 최대 크기 설정: python script.py -i input_dir -o output_dir --max-size 1024")
-    print("6. 미탐지 이미지 저장: python script.py -i input_dir -o output_dir -e undetected_dir")
-    
-    # CLI 모드로 실행
     main()
