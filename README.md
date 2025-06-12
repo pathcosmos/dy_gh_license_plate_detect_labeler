@@ -61,7 +61,7 @@ pip install -r requirements.txt
 1. **Clone Repository**
 ```bash
 git clone <repository-url>
-cd 01_license_plate
+cd <downloaded-git-folder>
 ```
 
 2. **Create Virtual Environment (Recommended)**
