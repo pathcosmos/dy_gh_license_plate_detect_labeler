@@ -17,6 +17,7 @@ from transformers import (
     DetrForObjectDetection
 )
 from ultralytics import YOLO
+from typing import Any, List, Dict, Tuple
 
 class LicensePlateYOLOLabeler:
     # 사용 가능한 모델들 정의 (기존 모델 + 검증된 추가 모델)
@@ -93,6 +94,108 @@ class LicensePlateYOLOLabeler:
             "local_path": "./model/embeded/yolov8s.pt"
         },
         
+        # YOLOv11 기반 모델들
+        "yolov11n": {
+            "name": "morsetechlab/yolov11-license-plate-detection",
+            "description": "YOLOv11 nano 모델, 가장 작은 크기 (5.47MB)",
+            "download_uri": "https://huggingface.co/morsetechlab/yolov11-license-plate-detection/resolve/main/license-plate-finetune-v1n.pt",
+            "processor_type": "YOLOv11",
+            "framework": "ultralytics",
+            "size": "5.47MB",
+            "performance": "중간",
+            "metrics": {
+                "precision": 0.95,
+                "recall": 0.92,
+                "mAP@50": 0.94,
+                "mAP@50-95": 0.65
+            },
+            "pros": ["매우 작은 모델 크기", "빠른 추론", "저사양 기기 적합"],
+            "cons": ["다른 버전 대비 정확도 낮음"],
+            "verified": True,
+            "license": "AGPLv3",
+            "model_file": "license-plate-finetune-v1n.pt"
+        },
+        "yolov11s": {
+            "name": "morsetechlab/yolov11-license-plate-detection",
+            "description": "YOLOv11 small 모델, 균형잡힌 성능 (19.2MB)",
+            "download_uri": "https://huggingface.co/morsetechlab/yolov11-license-plate-detection/resolve/main/license-plate-finetune-v1s.pt",
+            "processor_type": "YOLOv11",
+            "framework": "ultralytics",
+            "size": "19.2MB",
+            "performance": "높음",
+            "metrics": {
+                "precision": 0.97,
+                "recall": 0.94,
+                "mAP@50": 0.96,
+                "mAP@50-95": 0.68
+            },
+            "pros": ["균형잡힌 성능", "적절한 모델 크기", "실시간 처리 가능"],
+            "cons": ["x 버전 대비 정확도 낮음"],
+            "verified": True,
+            "license": "AGPLv3",
+            "model_file": "license-plate-finetune-v1s.pt"
+        },
+        "yolov11m": {
+            "name": "morsetechlab/yolov11-license-plate-detection",
+            "description": "YOLOv11 medium 모델, 높은 정확도 (40.5MB)",
+            "download_uri": "https://huggingface.co/morsetechlab/yolov11-license-plate-detection/resolve/main/license-plate-finetune-v1m.pt",
+            "processor_type": "YOLOv11",
+            "framework": "ultralytics",
+            "size": "40.5MB",
+            "performance": "매우 높음",
+            "metrics": {
+                "precision": 0.98,
+                "recall": 0.95,
+                "mAP@50": 0.97,
+                "mAP@50-95": 0.70
+            },
+            "pros": ["높은 정확도", "적절한 추론 속도", "실시간 처리 가능"],
+            "cons": ["x 버전 대비 정확도 낮음"],
+            "verified": True,
+            "license": "AGPLv3",
+            "model_file": "license-plate-finetune-v1m.pt"
+        },
+        "yolov11l": {
+            "name": "morsetechlab/yolov11-license-plate-detection",
+            "description": "YOLOv11 large 모델, 매우 높은 정확도 (51.2MB)",
+            "download_uri": "https://huggingface.co/morsetechlab/yolov11-license-plate-detection/resolve/main/license-plate-finetune-v1l.pt",
+            "processor_type": "YOLOv11",
+            "framework": "ultralytics",
+            "size": "51.2MB",
+            "performance": "매우 높음",
+            "metrics": {
+                "precision": 0.985,
+                "recall": 0.948,
+                "mAP@50": 0.978,
+                "mAP@50-95": 0.72
+            },
+            "pros": ["매우 높은 정확도", "강력한 특징 추출", "실시간 처리 가능"],
+            "cons": ["큰 모델 크기"],
+            "verified": True,
+            "license": "AGPLv3",
+            "model_file": "license-plate-finetune-v1l.pt"
+        },
+        "yolov11x": {
+            "name": "morsetechlab/yolov11-license-plate-detection",
+            "description": "YOLOv11x 모델, 최고 정확도 (114MB)",
+            "download_uri": "https://huggingface.co/morsetechlab/yolov11-license-plate-detection/resolve/main/license-plate-finetune-v1x.pt",
+            "processor_type": "YOLOv11",
+            "framework": "ultralytics",
+            "size": "114MB",
+            "performance": "최고",
+            "metrics": {
+                "precision": 0.9893,
+                "recall": 0.9508,
+                "mAP@50": 0.9813,
+                "mAP@50-95": 0.7260
+            },
+            "pros": ["최고 정확도", "강력한 특징 추출", "복잡한 케이스 처리 우수"],
+            "cons": ["매우 큰 모델 크기", "높은 GPU 메모리 요구사항"],
+            "verified": True,
+            "license": "AGPLv3",
+            "model_file": "license-plate-finetune-v1x.pt"
+        },
+        
         # 기본 모델들 (호환성 유지)
         "yolos-base": {
             "name": "hustvl/yolos-base",
@@ -145,66 +248,65 @@ class LicensePlateYOLOLabeler:
         }
     }
 
-    @classmethod
-    def list_available_models(cls):
-        """사용 가능한 모델 목록 출력 (검증 정보 포함)"""
-        print("\n=== 사용 가능한 모델 목록 ===")
+    def list_available_models(self):
+        """사용 가능한 모델 목록을 출력합니다."""
+        print("\n=== 사용 가능한 모델 목록 ===\n")
         
-        # 카테고리별 분류 업데이트
+        # 모델 카테고리별로 그룹화
         categories = {
-            "🔥 추천 번호판 전용 모델": ["yolos-small", "detr-resnet50"],
-            "🏆 YOLOS 기반 (Transformer)": ["yolos-small", "yolos-rego", "yolos-base"],
-            "🎯 DETR 기반 (Detection Transformer)": ["detr-resnet50", "detr-resnet-50"],
-            "⚡ YOLOv8 기반": ["yolov8s"],
-            "🔧 YOLOv5 기반": ["yolov5m"],
-            "📦 백업용 기본 모델": ["yolov8s"]
+            "🔥 최고 정확도 모델": ["yolov11x"],
+            "💪 고성능 모델": ["yolov11l", "yolov11m", "detr-resnet50"],
+            "⚖️ 균형잡힌 모델": ["yolov11s", "yolos-small", "yolos-rego"],
+            "🚀 경량 모델": ["yolov11n", "yolov5m", "yolov8s"]
         }
         
-        for category, models in categories.items():
-            print(f"\n📂 {category}")
-            for key in models:
-                if key in cls.AVAILABLE_MODELS:
-                    info = cls.AVAILABLE_MODELS[key]
-                    verified_mark = "✅" if info.get("verified", False) else "⚠️"
-                    print(f"  {verified_mark} 모델 키: {key}")
-                    print(f"     이름: {info['name']}")
-                    print(f"     설명: {info['description']}")
-                    print(f"     프레임워크: {info['framework']}")
-                    print(f"     크기: {info['size']}")
-                    print(f"     성능: {info['performance']}")
-                    if 'pros' in info:
-                        print(f"     장점: {', '.join(info['pros'])}")
-                    if 'cons' in info:
-                        print(f"     단점: {', '.join(info['cons'])}")
-                    if 'fallback' in info:
-                        print(f"     대체 모델: {info['fallback']}")
-                    print(f"     사용 예시: python license_plate_labeler.py -i input_dir -o output_dir -m {key}")
-                    print()
+        for category, model_keys in categories.items():
+            print(f"\n{category}")
+            print("=" * 50)
+            
+            for model_key in model_keys:
+                if model_key in self.AVAILABLE_MODELS:
+                    model = self.AVAILABLE_MODELS[model_key]
+                    print(f"\n모델 키: {model_key}")
+                    print(f"이름: {model['name']}")
+                    print(f"설명: {model['description']}")
+                    print(f"프레임워크: {model['framework']}")
+                    print(f"크기: {model['size']}")
+                    print(f"성능: {model['performance']}")
+                    
+                    if 'metrics' in model:
+                        print("\n성능 지표:")
+                        print(f"  - Precision: {model['metrics']['precision']:.4f}")
+                        print(f"  - Recall: {model['metrics']['recall']:.4f}")
+                        print(f"  - mAP@50: {model['metrics']['mAP@50']:.4f}")
+                        if 'mAP@50-95' in model['metrics']:
+                            print(f"  - mAP@50-95: {model['metrics']['mAP@50-95']:.4f}")
+                    
+                    print("\n장점:")
+                    for pro in model['pros']:
+                        print(f"  - {pro}")
+                    
+                    print("\n단점:")
+                    for con in model['cons']:
+                        print(f"  - {con}")
+                    
+                    if 'license' in model:
+                        print(f"\n라이선스: {model['license']}")
+                    
+                    print("\n사용 예시:")
+                    print(f"  python license_plate_labeler.py --model {model_key} --input 이미지.jpg --output 결과")
+                    print("-" * 50)
         
-        print(f"\n총 {len(cls.AVAILABLE_MODELS)}개의 모델이 사용 가능합니다.")
-        
-        # 성능 비교 정보 출력
-        print("\n=== 성능 비교 정보 ===")
-        print("\n🏃 속도 순위 (빠른 순):")
-        for i, model in enumerate(cls.PERFORMANCE_COMPARISON["속도_순위"], 1):
-            print(f"  {i}. {model}")
-        
-        print("\n🎯 정확도 순위 (높은 순):")
-        for i, model in enumerate(cls.PERFORMANCE_COMPARISON["정확도_순위"], 1):
-            print(f"  {i}. {model}")
-        
-        print("\n📦 모델 크기 순위 (작은 순):")
-        for i, model in enumerate(cls.PERFORMANCE_COMPARISON["모델크기_순위"], 1):
-            print(f"  {i}. {model}")
-        
-        print("\n💡 추천 용도:")
-        for purpose, model in cls.PERFORMANCE_COMPARISON["추천_용도"].items():
-            print(f"  - {purpose}: {model}")
-        
-        print("\n⚠️  주의사항:")
-        print("  - ✅ 마크: 검증된 모델 (우선 사용 권장)")
-        print("  - YOLOv5/YOLOv8 모델은 ultralytics 라이브러리 필요")
-        print("  - 설치: pip install ultralytics")
+        print("\n=== 모델 선택 가이드 ===")
+        print("1. 최고 정확도가 필요한 경우: yolov11x")
+        print("2. 균형잡힌 성능이 필요한 경우: yolov11m 또는 yolov11s")
+        print("3. 경량화가 필요한 경우: yolov11n")
+        print("4. 차량과 번호판을 동시에 탐지해야 하는 경우: yolos-rego")
+        print("\n=== 주의사항 ===")
+        print("1. YOLOv11 모델들은 ultralytics 패키지가 필요합니다.")
+        print("2. YOLOS/DETR 모델들은 transformers 패키지가 필요합니다.")
+        print("3. 모델 크기가 클수록 더 높은 정확도를 제공하지만, 더 많은 GPU 메모리가 필요합니다.")
+        print("4. yolov11x 모델은 AGPLv3 라이선스로 제공됩니다.")
 
     def _check_model_availability(self, model_name):
         """HuggingFace에서 모델 존재 여부 확인"""
@@ -788,9 +890,6 @@ class LicensePlateYOLOLabeler:
                                 }
                                 detections.append(detection)
             
-            else:
-                raise ValueError(f"지원하지 않는 YOLO 타입: {processor_type}")
-            
             return detections, original_size
             
         except Exception as e:
@@ -1189,23 +1288,38 @@ def main():
                            help="출력 디렉토리 경로")
         parser.add_argument("--model", "-m", type=str, default="yolos-small",
                            choices=available_model_keys,
-                           help=f"사용할 모델 선택 (기본값: yolos-small)")
+                           help=f"사용할 모델 선택 (기본값: yolos-small)\n"
+                                f"- yolos-small: YOLO + Vision Transformer, 번호판 전용 파인튜닝 (90MB)\n"
+                                f"- yolos-rego: YOLOS + 차량+번호판 동시 탐지 (90MB)\n"
+                                f"- detr-resnet50: DETR + ResNet50 백본, 번호판 탐지 전용 (160MB)\n"
+                                f"- yolov5m: YOLOv5 medium 모델, 번호판 탐지 특화 (40MB)\n"
+                                f"- yolov8s: 기본 YOLOv8 small 모델 (22MB)\n"
+                                f"- yolov11x: YOLOv11x 모델, 최고 정확도 (mAP@50: 0.9813, 180MB)")
         parser.add_argument("--token", "-t", type=str,
-                           help="HuggingFace 액세스 토큰 (private 모델 접근시 필요)")
+                           help="HuggingFace 액세스 토큰 (private 모델 접근시 필요)\n"
+                                "토큰은 https://huggingface.co/settings/tokens 에서 생성 가능")
         parser.add_argument("--list-models", action="store_true",
                            help="사용 가능한 모델 목록과 사용 예시 출력")
         parser.add_argument("--local-model", type=str,
-                           help="로컬 모델 경로 (오프라인 사용시)")
+                           help="로컬 모델 경로 (오프라인 사용시)\n"
+                                "HuggingFace 모델을 로컬에 다운로드하여 사용할 때 지정")
         parser.add_argument("--confidence", "-c", type=float, default=0.5,
-                           help="신뢰도 임계값 (기본값: 0.5)")
+                           help="신뢰도 임계값 (0.0-1.0, 기본값: 0.5)\n"
+                                "높은 값: 더 확실한 탐지만 허용\n"
+                                "낮은 값: 더 많은 후보 탐지 허용")
         parser.add_argument("--no-viz", action="store_true",
-                           help="시각화 결과 저장 안함")
+                           help="시각화 결과 저장 안함\n"
+                                "탐지된 번호판을 표시한 이미지 생성하지 않음")
         parser.add_argument("--undetected-dir", "-e", type=str,
-                           help="탐지되지 않은 이미지를 저장할 디렉토리 경로")
+                           help="탐지되지 않은 이미지를 저장할 디렉토리 경로\n"
+                                "번호판이 탐지되지 않은 이미지를 별도로 저장")
         parser.add_argument("--max-size", type=int, default=800,
-                           help="처리할 최대 이미지 크기 (longest edge, 기본값: 800)")
+                           help="처리할 최대 이미지 크기 (longest edge, 기본값: 800)\n"
+                                "큰 이미지는 이 크기로 축소되어 처리됨\n"
+                                "메모리 사용량과 처리 속도에 영향")
         parser.add_argument("--force-cpu", action="store_true",
-                           help="GPU 사용을 비활성화하고 CPU만 사용")
+                           help="GPU 사용을 비활성화하고 CPU만 사용\n"
+                                "GPU 메모리 부족시 또는 호환성 문제시 사용")
         
         args = parser.parse_args()
         

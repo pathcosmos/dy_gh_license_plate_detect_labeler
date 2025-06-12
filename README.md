@@ -58,15 +58,17 @@ pip install -r requirements.txt
 
 ## 🛠️ Installation
 
-1. **Clone Repository**
+For detailed installation instructions, please refer to [INSTALL.md](INSTALL.md).
+
+### **Clone Repository**
 ```bash
 git clone <repository-url>
 cd <downloaded-git-folder>
 ```
 
-2. **Create Virtual Environment (Recommended)**
+### Quick Installation
 
-#### Using uv (Faster)
+#### Option 1: Using uv (Recommended for fast installation)
 ```bash
 # Create virtual environment with uv
 uv venv .venv
@@ -155,15 +157,30 @@ python src/license_plate_labeler.py \
 
 ## 📝 Command Line Options
 
-| Option | Short Form | Description | Default |
-|--------|------------|-------------|---------|
-| `--input` | `-i` | Input image file or directory path | Required |
-| `--output` | `-o` | Output directory path | Required |
-| `--confidence` | `-c` | Confidence threshold (0.0-1.0) | 0.5 |
-| `--no-viz` | - | Disable visualization output | False |
-| `--undetected-dir` | `-e` | Directory to save undetected images | None |
-| `--max-size` | - | Maximum processing size (longest edge) | 800 |
-| `--force-cpu` | - | Force CPU usage (disable GPU) | False |
+| Option | Description |
+|--------|-------------|
+| `--input` or `-i` | Input image file or directory path (Required) |
+| `--output` or `-o` | Output directory path (Required) |
+| `--model` | Model to use for detection (default: yolov8s) |
+| | Available models: |
+| | - `yolos-small`: YOLO + Vision Transformer (90MB) |
+| | - `yolos-rego`: YOLOS + 차량+번호판 동시 탐지 (90MB) |
+| | - `detr-resnet50`: DETR + ResNet50 (160MB) |
+| | - `yolov5m`: YOLOv5 medium (40MB) |
+| | - `yolov8s`: YOLOv8 small (22MB) |
+| | - `yolov11n`: YOLOv11 nano (5.47MB) |
+| | - `yolov11s`: YOLOv11 small (19.2MB) |
+| | - `yolov11m`: YOLOv11 medium (40.5MB) |
+| | - `yolov11l`: YOLOv11 large (51.2MB) |
+| | - `yolov11x`: YOLOv11x (최고 정확도, 114MB) |
+| `--confidence` or `-c` | Confidence threshold (default 0.5) |
+| `--no-viz` | Disable visualization output (default False) |
+| `--undetected-dir` or `-e` | Directory to save undetected images (default None) |
+| `--max-size` | Maximum processing size (default 800) |
+| `--force-cpu` | Force CPU usage (default False) |
+| `--token` | Hugging Face API token for model download |
+| `--local-model` | Path to local model file for offline use |
+| `--list-models` | List all available models and exit |
 
 ## 📁 Output File Structure
 
