@@ -161,7 +161,7 @@ python src/license_plate_labeler.py \
 |--------|-------------|
 | `--input` or `-i` | Input image file or directory path (Required) |
 | `--output` or `-o` | Output directory path (Required) |
-| `--model` | Model to use for detection (default: yolov8s) |
+| `--model` | Model to use for detection (default: yolos-small) |
 | | Available models: |
 | | - `yolos-small`: YOLO + Vision Transformer (90MB) |
 | | - `yolos-rego`: YOLOS + 차량+번호판 동시 탐지 (90MB) |
@@ -179,7 +179,7 @@ python src/license_plate_labeler.py \
 | `--undetected-dir` or `-e` | Directory to save undetected images (default None) |
 | `--max-size` | Maximum processing size (default 800) |
 | `--force-cpu` | Force CPU usage (default False) |
-| `--token` | Hugging Face API token for model download |
+| `--token` | Hugging Face API token for model download (use read-only token) |
 | `--local-model` | Path to local model file for offline use |
 | `--list-models` | List all available models and exit |
 
@@ -356,13 +356,21 @@ valentinafeve/yolos-small_finetuned_license_plate is not a local folder and is n
    #### Method 2: Direct Token Authentication
    ```bash
    # Set token as environment variable
-   export HUGGINGFACE_HUB_TOKEN="your_token_here"
-   
+   export HUGGINGFACE_HUB_TOKEN="your_read_token"
+
    # Or on Windows
-   set HUGGINGFACE_HUB_TOKEN=your_token_here
+   set HUGGINGFACE_HUB_TOKEN=your_read_token
    ```
 
-   #### Method 3: Programmatic Token Usage
+   #### Method 3: Command Line Argument
+   Pass the token directly when running the labeler:
+   ```bash
+   python src/license_plate_labeler.py \
+       -i input_dir -o output_dir \
+       --token your_read_token
+   ```
+
+   #### Method 4: Programmatic Token Usage
    If you need to pass the token directly in your code, you can modify the initialization:
    ```python
    # Add token parameter to model loading (for advanced users)
@@ -384,6 +392,7 @@ valentinafeve/yolos-small_finetuned_license_plate is not a local folder and is n
    3. Choose appropriate permissions:
       - **Read**: For downloading public models
       - **Write**: If you plan to upload models
+      - For this project a **Read** token is enough
    4. Copy the generated token
    5. Use it with one of the methods above
 
