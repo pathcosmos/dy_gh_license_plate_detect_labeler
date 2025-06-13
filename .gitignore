@@ -29,3 +29,5 @@ venv.bak/
 
 data/
 .git/
+
+tests/logs/
