@@ -1606,3 +1606,49 @@ python .\src\license_plate_labeler.py `
 7. 성능 최적화
    - 신뢰도 임계값(`-c`)을 조정하여 탐지 정확도를 조절할 수 있습니다
    - 이미지 크기(`--max-size`)를 조정하여 처리 속도를 조절할 수 있습니다
+
+## CLI 실행 방법
+
+### Windows PowerShell
+
+1. 한 줄로 실행:
+```powershell
+Remove-Item -Recurse -Force .\temp_data\miss_plate\* -ErrorAction SilentlyContinue; Remove-Item -Recurse -Force .\temp_data\out_plate\* -ErrorAction SilentlyContinue; python .\src\license_plate_labeler.py -i .\temp_data\org_plate -o .\temp_data\out_plate -t <your_hugging_face_read_token> -c 0.6 --max-size 640 -e .\temp_data\miss_plate -m yolos-small
+```
+
+2. 여러 줄로 실행 (가독성 향상):
+```powershell
+Remove-Item -Recurse -Force ./temp_data/miss_plate/* -ErrorAction SilentlyContinue; `
+Remove-Item -Recurse -Force ./temp_data/out_plate/* -ErrorAction SilentlyContinue; `
+python .\src\license_plate_labeler.py `
+ -i .\temp_data\org_plate `
+ -o .\temp_data\out_plate `
+ -t <your_hugging_face_read_token> `
+ -c 0.6 `
+ --max-size 640 `
+ -e .\temp_data\miss_plate `
+ -m yolos-small
+```
+
+### Linux
+
+```bash
+rm -rf ./temp_data/miss_plate/* && rm -rf ./temp_data/out_plate/* && python ./src/license_plate_labeler.py -i ./temp_data/org_plate -o ./temp_data/out_plate -t <your_hugging_face_read_token> -c 0.25 --max-size 1024 -e ./temp_data/miss_plate -m yolov5s
+```
+
+### 매개변수 설명
+
+- `-i`: 입력 이미지 디렉토리
+- `-o`: 출력 이미지 디렉토리
+- `-t`: Hugging Face 읽기 토큰
+- `-c`: 신뢰도 임계값 (0.0 ~ 1.0)
+- `--max-size`: 최대 이미지 크기
+- `-e`: 미감지 이미지 저장 디렉토리
+- `-m`: 사용할 모델 (예: yolos-small, yolov5s)
+
+### 주의사항
+
+1. Hugging Face 토큰은 `<your_hugging_face_read_token>`을 실제 토큰으로 교체해야 합니다.
+2. 디렉토리 경로는 실제 환경에 맞게 조정해야 합니다.
+3. Windows에서는 PowerShell을 사용하는 것이 권장됩니다.
+4. Linux에서는 bash 쉘을 사용합니다.
