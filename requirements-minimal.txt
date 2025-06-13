@@ -1,10 +1,27 @@
-# Minimal dependencies for License Plate Detection
-torch>=2.1.0
-torchvision>=0.16.0
-torchaudio>=2.1.0
-transformers>=4.35.0
-opencv-python>=4.8.0
-Pillow>=10.0.0
-numpy>=1.24.0
-timm>=0.9.12
-ultralytics>=8.0.196
+# Minimal dependencies for basic license plate detection
+
+# Core PyTorch (YOLOv5 requirement)
+torch>=1.9.0
+torchvision>=0.10.0
+
+# Transformers for YOLOS/DETR models
+transformers>=4.20.0
+
+# Ultralytics for YOLOv8/YOLOv11
+ultralytics>=8.0.0
+
+# Essential image processing
+opencv-python>=4.5.0
+pillow>=8.0.0
+numpy>=1.20.0
+
+# HuggingFace for model downloading
+huggingface-hub>=0.10.0
+
+# Basic utilities
+requests>=2.25.0
+tqdm>=4.60.0
+pyyaml>=5.4.0
+
+# YOLOv5 will be automatically downloaded via torch.hub
+# No additional YOLOv5-specific package needed

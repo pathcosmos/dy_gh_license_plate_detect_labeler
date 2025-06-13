@@ -1,22 +1,40 @@
 # License Plate Detection and YOLO Labeling Generator - Dependencies
 # Compatible with Python 3.8+
 
-# Deep Learning Framework
+# Core ML frameworks
 torch>=2.1.0
 torchvision>=0.16.0
 torchaudio>=2.1.0
-
-# HuggingFace Transformers and Vision
 transformers>=4.35.0
-timm>=0.9.12
+ultralytics>=8.0.196
 
-# Computer Vision and Image Processing
+# YOLOv5 dependencies
+# YOLOv5 is loaded via torch.hub, but these are its dependencies
 opencv-python>=4.8.0
 Pillow>=10.0.0
 numpy>=1.24.0
+matplotlib>=3.7.0
+seaborn>=0.12.0
+requests>=2.25.0
+tqdm>=4.64.0
+pyyaml>=5.4.0
+scipy>=1.7.0
+
+# HuggingFace and model downloading
+huggingface-hub>=0.10.0
+datasets>=2.0.0
+timm>=0.9.12
+
+# Image processing
+opencv-contrib-python>=4.5.0
+scikit-image>=0.18.0
 
 # YOLOv5/YOLOv8 support
 ultralytics>=8.0.196
+
+# YOLOv5 torch hub dependencies
+scipy>=1.4.1
+tqdm>=4.64.0
 
 # Data Analysis and Visualization
 seaborn>=0.12.0
@@ -24,8 +42,13 @@ matplotlib>=3.7.0
 pandas>=2.0.0
 
 # Utility Libraries (built-in, listed for completeness)
-argparse
-pathlib
-shutil
-ssl
+argparse>=1.4.0
+pathlib2>=2.3.0
 urllib3
+
+# Optional: For better YOLO performance
+tensorboard>=2.7.0
+
+# Linux/mac must enable below
+#shutil
+#ssl
