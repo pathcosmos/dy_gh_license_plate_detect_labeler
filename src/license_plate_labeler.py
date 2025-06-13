@@ -638,8 +638,15 @@ class LicensePlateYOLOLabeler:
         """
         print("\n모델 초기화 중...")
         
-        # 토큰 저장
-        self.token = token
+        # 토큰 설정 (환경 변수 또는 인자에서 가져오기)
+        self.token = token or os.getenv('HF_TOKEN')
+        if self.token:
+            print("HuggingFace 토큰이 설정되었습니다.")
+        else:
+            print("HuggingFace 토큰이 설정되지 않았습니다. 일부 모델에 접근이 제한될 수 있습니다.")
+            print("토큰 설정 방법:")
+            print("1. 환경 변수로 설정: export HF_TOKEN='your_token_here'")
+            print("2. 명령줄 인자로 설정: --token 'your_token_here'")
         
         # 모델 정보 확인 및 기본값 설정
         if model_key not in self.AVAILABLE_MODELS and not local_model_path:
@@ -1313,6 +1320,10 @@ def main():
   미탐지 이미지 저장:       python %(prog)s -i input_dir -o output_dir -e undetected_dir
   CPU 강제 사용:            python %(prog)s -i input_dir -o output_dir --force-cpu
 
+HuggingFace 토큰 설정:
+  1. 환경 변수로 설정:       export HF_TOKEN='your_token_here'
+  2. 명령줄 인자로 설정:     python %(prog)s -i input_dir -o output_dir -t 'your_token_here'
+
 추천 모델:
   - 실시간 처리: yolov5m
   - 최고 정확도: detr-resnet50
@@ -1338,7 +1349,8 @@ def main():
                                 f"- yolov11x: YOLOv11x 모델, 최고 정확도 (mAP@50: 0.9813, 180MB)")
         parser.add_argument("--token", "-t", type=str,
                            help="HuggingFace 액세스 토큰 (private 모델 접근시 필요)\n"
-                                "토큰은 https://huggingface.co/settings/tokens 에서 생성 가능")
+                                "토큰은 https://huggingface.co/settings/tokens 에서 생성 가능\n"
+                                "환경 변수 HF_TOKEN으로도 설정 가능")
         parser.add_argument("--list-models", action="store_true",
                            help="사용 가능한 모델 목록과 사용 예시 출력")
         parser.add_argument("--local-model", type=str,

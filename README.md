@@ -356,21 +356,13 @@ valentinafeve/yolos-small_finetuned_license_plate is not a local folder and is n
    #### Method 2: Direct Token Authentication
    ```bash
    # Set token as environment variable
-   export HUGGINGFACE_HUB_TOKEN="your_read_token"
-
+   export HF_TOKEN="your_token_here"
+   
    # Or on Windows
-   set HUGGINGFACE_HUB_TOKEN=your_read_token
+   set HF_TOKEN=your_token_here
    ```
 
-   #### Method 3: Command Line Argument
-   Pass the token directly when running the labeler:
-   ```bash
-   python src/license_plate_labeler.py \
-       -i input_dir -o output_dir \
-       --token your_read_token
-   ```
-
-   #### Method 4: Programmatic Token Usage
+   #### Method 3: Programmatic Token Usage
    If you need to pass the token directly in your code, you can modify the initialization:
    ```python
    # Add token parameter to model loading (for advanced users)
@@ -1078,3 +1070,310 @@ CUDA를 사용할 수 없습니다. CPU를 사용합니다.
 **문제가 발생하거나 질문이 있으시면 GitHub Issues를 통해 연락해 주세요!**
 
 **행복한 번호판 탐지 되세요! 🚗📋**
+
+## 🔑 HuggingFace 토큰 설정
+
+### 토큰이 필요한 경우
+
+다음과 같은 경우 HuggingFace 토큰이 필요합니다:
+- Private 모델에 접근할 때
+- 다운로드 제한이 있는 모델을 사용할 때
+- 특정 모델의 최신 버전에 접근할 때
+
+### 토큰 설정 방법
+
+#### 1. 환경 변수로 설정 (권장)
+
+```bash
+# Linux/macOS
+export HF_TOKEN="your_token_here"
+
+# Windows (Command Prompt)
+set HF_TOKEN=your_token_here
+
+# Windows (PowerShell)
+$env:HF_TOKEN="your_token_here"
+```
+
+#### 2. 명령줄 인자로 설정
+
+```bash
+python license_plate_labeler.py -i input_dir -o output_dir -t "your_token_here"
+# 또는
+python license_plate_labeler.py --token "your_token_here" -i input_dir -o output_dir
+```
+
+### 토큰 생성 방법
+
+1. [HuggingFace 웹사이트](https://huggingface.co)에 로그인
+2. 우측 상단의 프로필 아이콘 클릭
+3. Settings 메뉴 선택
+4. 왼쪽 사이드바에서 "Access Tokens" 선택
+5. "New token" 버튼 클릭
+6. 토큰 이름 입력 및 권한 설정
+7. "Generate token" 버튼 클릭
+8. 생성된 토큰을 안전한 곳에 복사
+
+### 토큰 설정 확인
+
+토큰이 올바르게 설정되었는지 확인하려면:
+
+```bash
+# 환경 변수 확인
+echo $HF_TOKEN  # Linux/macOS
+echo %HF_TOKEN% # Windows Command Prompt
+echo $env:HF_TOKEN # Windows PowerShell
+
+# 프로그램 실행 시 토큰 설정 확인
+python license_plate_labeler.py -i input_dir -o output_dir
+```
+
+### 주의사항
+
+1. 토큰 보안
+   - 토큰을 공개 저장소에 커밋하지 마세요
+   - 토큰을 다른 사람과 공유하지 마세요
+   - 정기적으로 토큰을 갱신하세요
+
+2. 토큰 권한
+   - 필요한 최소한의 권한만 부여하세요
+   - 읽기 권한만 필요한 경우 write 권한은 부여하지 마세요
+
+3. 토큰 관리
+   - 여러 환경에서 사용하는 경우 환경 변수로 설정하는 것을 권장
+   - CI/CD 파이프라인에서는 시크릿으로 관리
+
+### 문제 해결
+
+토큰 관련 문제가 발생하면 다음을 확인하세요:
+
+1. 토큰 유효성
+   - 토큰이 만료되지 않았는지 확인
+   - 토큰이 올바르게 복사되었는지 확인
+
+2. 권한 문제
+   - 토큰에 필요한 권한이 부여되어 있는지 확인
+   - 모델에 대한 접근 권한이 있는지 확인
+
+3. 환경 변수 문제
+   - 환경 변수가 올바른 세션에 설정되어 있는지 확인
+   - 대소문자가 정확한지 확인 (HF_TOKEN)
+
+4. 네트워크 문제
+   - HuggingFace 서버에 접근 가능한지 확인
+   - 프록시 설정이 필요한지 확인
+
+### CI/CD 통합 예시
+
+GitHub Actions에서 토큰 사용 예시:
+
+```yaml
+name: License Plate Detection
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.8'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Run tests
+        run: python license_plate_labeler.py -i input_dir -o output_dir
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+```
+
+## 🖥️ CLI 사용 예시
+
+### 기본 사용법
+
+#### Linux/macOS (bash/zsh)
+```bash
+python ./src/license_plate_labeler.py \
+ -i ./temp_data/org_plate \
+ -o ./temp_data/out_plate \
+ -m yolos-small \
+ -t <huggingface_token> \
+ -c 0.6 \
+ --max-size 640 \
+ -e ./temp_data/miss_plate
+```
+
+#### Windows (Command Prompt)
+```cmd
+python .\src\license_plate_labeler.py ^
+ -i .\temp_data\org_plate ^
+ -o .\temp_data\out_plate ^
+ -m yolos-small ^
+ -t <huggingface_token> ^
+ -c 0.6 ^
+ --max-size 640 ^
+ -e .\temp_data\miss_plate
+```
+
+#### Windows (PowerShell)
+```powershell
+python .\src\license_plate_labeler.py `
+ -i .\temp_data\org_plate `
+ -o .\temp_data\out_plate `
+ -m yolos-small `
+ -t <huggingface_token> `
+ -c 0.6 `
+ --max-size 640 `
+ -e .\temp_data\miss_plate
+```
+
+### 다른 사용 예시
+
+#### 1. 단일 이미지 처리
+
+Linux/macOS (bash/zsh):
+```bash
+python ./src/license_plate_labeler.py \
+ -i ./temp_data/org_plate/image.jpg \
+ -o ./temp_data/out_plate \
+ -m yolos-small
+```
+
+Windows (Command Prompt):
+```cmd
+python .\src\license_plate_labeler.py ^
+ -i .\temp_data\org_plate\image.jpg ^
+ -o .\temp_data\out_plate ^
+ -m yolos-small
+```
+
+Windows (PowerShell):
+```powershell
+python .\src\license_plate_labeler.py `
+ -i .\temp_data\org_plate\image.jpg `
+ -o .\temp_data\out_plate `
+ -m yolos-small
+```
+
+#### 2. 다른 모델 사용
+
+Linux/macOS (bash/zsh):
+```bash
+python ./src/license_plate_labeler.py \
+ -i ./temp_data/org_plate \
+ -o ./temp_data/out_plate \
+ -m yolov11x \
+ -t <huggingface_token>
+```
+
+Windows (Command Prompt):
+```cmd
+python .\src\license_plate_labeler.py ^
+ -i .\temp_data\org_plate ^
+ -o .\temp_data\out_plate ^
+ -m yolov11x ^
+ -t <huggingface_token>
+```
+
+Windows (PowerShell):
+```powershell
+python .\src\license_plate_labeler.py `
+ -i .\temp_data\org_plate `
+ -o .\temp_data\out_plate `
+ -m yolov11x `
+ -t <huggingface_token>
+```
+
+#### 3. CPU 모드로 실행
+
+Linux/macOS (bash/zsh):
+```bash
+python ./src/license_plate_labeler.py \
+ -i ./temp_data/org_plate \
+ -o ./temp_data/out_plate \
+ -m yolos-small \
+ --force-cpu
+```
+
+Windows (Command Prompt):
+```cmd
+python .\src\license_plate_labeler.py ^
+ -i .\temp_data\org_plate ^
+ -o .\temp_data\out_plate ^
+ -m yolos-small ^
+ --force-cpu
+```
+
+Windows (PowerShell):
+```powershell
+python .\src\license_plate_labeler.py `
+ -i .\temp_data\org_plate `
+ -o .\temp_data\out_plate `
+ -m yolos-small `
+ --force-cpu
+```
+
+#### 4. 시각화 결과 없이 실행
+
+Linux/macOS (bash/zsh):
+```bash
+python ./src/license_plate_labeler.py \
+ -i ./temp_data/org_plate \
+ -o ./temp_data/out_plate \
+ -m yolos-small \
+ --no-viz
+```
+
+Windows (Command Prompt):
+```cmd
+python .\src\license_plate_labeler.py ^
+ -i .\temp_data\org_plate ^
+ -o .\temp_data\out_plate ^
+ -m yolos-small ^
+ --no-viz
+```
+
+Windows (PowerShell):
+```powershell
+python .\src\license_plate_labeler.py `
+ -i .\temp_data\org_plate `
+ -o .\temp_data\out_plate `
+ -m yolos-small `
+ --no-viz
+```
+
+### 주의사항
+
+1. 경로 구분자
+   - Linux/macOS: `/` 사용
+   - Windows: `\` 사용
+   - PowerShell: `\` 또는 `/` 모두 사용 가능
+
+2. 줄 연속 문자
+   - Linux/macOS (bash/zsh): `\`
+   - Windows Command Prompt: `^`
+   - Windows PowerShell: `` ` `` (백틱)
+
+3. 환경 변수 설정
+   - Linux/macOS (bash/zsh): `export HF_TOKEN="your_token_here"`
+   - Windows Command Prompt: `set HF_TOKEN=your_token_here`
+   - Windows PowerShell: `$env:HF_TOKEN="your_token_here"`
+
+4. 디렉토리 구조
+   - 입력 디렉토리: 원본 이미지가 있는 디렉토리
+   - 출력 디렉토리: 탐지 결과와 라벨 파일이 저장될 디렉토리
+   - 미탐지 디렉토리: 번호판이 탐지되지 않은 이미지가 저장될 디렉토리
+
+5. 권한 설정
+   - 입력/출력 디렉토리에 대한 읽기/쓰기 권한이 필요합니다
+   - 디렉토리가 없는 경우 자동으로 생성됩니다
+
+6. 메모리 사용
+   - `--max-size` 파라미터를 조정하여 메모리 사용량을 제어할 수 있습니다
+   - GPU 메모리 부족 시 `--force-cpu` 옵션을 사용하세요
+
+7. 성능 최적화
+   - 신뢰도 임계값(`-c`)을 조정하여 탐지 정확도를 조절할 수 있습니다
+   - 이미지 크기(`--max-size`)를 조정하여 처리 속도를 조절할 수 있습니다
