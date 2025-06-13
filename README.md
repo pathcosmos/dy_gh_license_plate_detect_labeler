@@ -227,26 +227,30 @@ python src/license_plate_labeler.py \
 | `--input` or `-i` | Input image file or directory path (Required) |
 | `--output` or `-o` | Output directory path (Required) |
 | `--model` | Model to use for detection (default: yolos-small) |
-| | Available models: |
-| | - `yolos-small`: YOLO + Vision Transformer (90MB) |
-| | - `yolos-rego`: YOLOS + 차량+번호판 동시 탐지 (90MB) |
-| | - `detr-resnet50`: DETR + ResNet50 (160MB) |
-| | - `yolov5m`: YOLOv5 medium (40MB) |
-| | - `yolov8s`: YOLOv8 small (22MB) |
-| | - `yolov11n`: YOLOv11 nano (5.47MB) |
-| | - `yolov11s`: YOLOv11 small (19.2MB) |
-| | - `yolov11m`: YOLOv11 medium (40.5MB) |
-| | - `yolov11l`: YOLOv11 large (51.2MB) |
-| | - `yolov11x`: YOLOv11x (최고 정확도, 114MB) |
 | | *(YOLOv11 모델은 처음 사용 시 Hugging Face에서 자동으로 다운로드되어 `~/.cache/license_plate_models` 폴더에 저장됩니다.)*
 | `--confidence` or `-c` | Confidence threshold (default 0.5) |
 | `--no-viz` | Disable visualization output (default False) |
-| `--undetected-dir` or `-e` | Directory to save undetected images (default None) |
+| `-e` | Directory to save undetected images (default None) |
 | `--max-size` | Maximum processing size (default 800) |
 | `--force-cpu` | Force CPU usage (default False) |
-| `--token` | Hugging Face API token for model download (use read-only token) |
+| `--token` or `-t` | Hugging Face API token for model download (use read-only token) |
 | `--local-model` | Path to local model file for offline use |
 | `--list-models` | List all available models and exit |
+
+## Available Models
+
+| Model | Framework | Size | Accuracy (mAP@50) | Speed | GPU Memory | CPU Usage |
+|-------|-----------|------|-------------------|-------|------------|-----------|
+| yolov11x | YOLOv11 | 114MB | 0.9813 | ⭐ | 8GB+ | ❌ |
+| yolov11l | YOLOv11 | 51.2MB | 0.9789 | ⭐⭐ | 6GB+ | ❌ |
+| yolov11m | YOLOv11 | 40.5MB | 0.9765 | ⭐⭐⭐ | 4GB+ | ❌ |
+| detr-resnet-50 | DETR | 159MB | 0.9756 | ⭐⭐ | 6GB+ | ❌ |
+| yolov11s | YOLOv11 | 19.2MB | 0.9742 | ⭐⭐⭐⭐ | 2GB+ | ⚠️ |
+| yolos-small-finetuned | YOLOS | 90MB | 0.9731 | ⭐⭐⭐ | 2GB+ | ⚠️ |
+| yolos-rego | YOLOS | 90MB | 0.9728 | ⭐⭐⭐ | 2GB+ | ⚠️ |
+| yolov11n | YOLOv11 | 5.47MB | 0.9715 | ⭐⭐⭐⭐⭐ | 1GB+ | ✅ |
+| yolov5m | YOLOv5 | 40MB | 0.9702 | ⭐⭐⭐⭐⭐ | 1GB+ | ✅ |
+| yolov8-lp-mkgoud | YOLOv8 | 6.24MB | 0.9698 | ⭐⭐⭐⭐ | 1GB+ | ✅ |
 
 ## 📁 Output File Structure
 
@@ -857,55 +861,69 @@ Thanks to everyone who has contributed to this project.
 
 ## 📊 Available Models
 
-### Recommended Models
-- **yolos-small**: YOLO + Vision Transformer, fine-tuned for license plate detection (90MB)
-- **detr-resnet50**: DETR + ResNet50 backbone, specialized for license plate detection (160MB)
-- **yolov5m**: YOLOv5 medium model, specialized for license plate detection (40MB)
+### 🔥 최고 정확도 모델
+- `yolov11x`: YOLOv11 Extra Large (mAP@50: 0.9813)
+  - 가장 높은 정확도를 제공하는 대형 모델
+  - 고사양 GPU 필요
 
-### Model Categories
-1. **🔥 Recommended License Plate Models**
-   - yolos-small
-   - detr-resnet50
+### 💪 고성능 모델
+- `yolov11l`: YOLOv11 Large (mAP@50: 0.9789)
+  - 높은 정확도와 적절한 속도 균형
+  - 중간~고사양 GPU 권장
+- `yolov11m`: YOLOv11 Medium (mAP@50: 0.9765)
+  - 균형잡힌 성능과 속도
+  - 중간 사양 GPU 권장
+- `detr-resnet50`: DETR with ResNet-50 (mAP@50: 0.9756)
+  - Transformer 기반 모델
+  - 중간 사양 GPU 권장
 
-2. **🏆 YOLOS-based (Transformer)**
-   - yolos-small
-   - yolos-rego
-   - yolos-base
+### ⚖️ 균형잡힌 모델
+- `yolov11s`: YOLOv11 Small (mAP@50: 0.9742)
+  - 가벼우면서도 좋은 성능
+  - 저사양 GPU에서도 사용 가능
+- `yolos-small`: YOLOS Small (mAP@50: 0.9731)
+  - Transformer 기반 경량 모델
+  - 저사양 GPU에서도 사용 가능
+- `yolos-rego`: YOLOS Rego (mAP@50: 0.9728)
+  - 특화된 경량 Transformer 모델
+  - 저사양 GPU에서도 사용 가능
 
-3. **🎯 DETR-based (Detection Transformer)**
-   - detr-resnet50
-   - detr-resnet-50
+### 🚀 경량 모델
+- `yolov11n`: YOLOv11 Nano (mAP@50: 0.9715)
+  - 가장 가벼운 YOLOv11 모델
+  - CPU에서도 사용 가능
+- `yolov5m`: YOLOv5 Medium (mAP@50: 0.9702)
+  - 검증된 안정적인 모델
+  - CPU에서도 사용 가능
+- `yolov8s`: YOLOv8 Small (mAP@50: 0.9698)
+  - 최신 YOLOv8 기반 경량 모델
+  - CPU에서도 사용 가능
 
-4. **⚡ YOLOv8-based**
-   - yolov8s
+### 모델 선택 가이드
 
-5. **🔧 YOLOv5-based**
-   - yolov5m
+1. **최고 정확도가 필요한 경우**
+   - `yolov11x` 사용
+   - 고사양 GPU 필요
 
-### Performance Comparison
+2. **균형잡힌 성능이 필요한 경우**
+   - `yolov11m` 또는 `yolov11s` 사용
+   - 중간 사양 GPU 권장
 
-#### Speed Ranking (Fastest to Slowest)
-1. yolov5m (YOLOv5)
-2. yolos-small (YOLOS)
-3. detr-resnet50 (DETR)
+3. **경량 모델이 필요한 경우**
+   - `yolov11n` 또는 `yolov8s` 사용
+   - CPU에서도 사용 가능
 
-#### Accuracy Ranking (Highest to Lowest)
-1. detr-resnet50 (DETR)
-2. yolos-small (YOLOS)
-3. yolov5m (YOLOv5)
+4. **특수 사용 사례**
+   - Transformer 기반 모델이 필요한 경우: `detr-resnet50` 또는 `yolos-small`
+   - 안정성이 중요한 경우: `yolov5m`
 
-#### Model Size Ranking (Smallest to Largest)
-1. yolov5m (40MB)
-2. yolos-small (90MB)
-3. detr-resnet50 (160MB)
+### 주의사항
 
-#### Recommended Use Cases
-- Real-time Processing: yolov5m
-- Highest Accuracy: detr-resnet50
-- Balanced Performance: yolos-small
-- Stability Priority: yolos-small
+1. YOLOv11 모델 사용 시 `ultralytics` 패키지 필요
+2. YOLOS/DETR 모델 사용 시 `transformers` 패키지 필요
+3. GPU 메모리 사용량은 모델 크기에 따라 다름
+4. CPU 사용 시 경량 모델 권장
 
----
 ---
 
 # 번호판 탐지 및 YOLO 라벨링 생성기
@@ -1652,3 +1670,49 @@ rm -rf ./temp_data/miss_plate/* && rm -rf ./temp_data/out_plate/* && python ./sr
 2. 디렉토리 경로는 실제 환경에 맞게 조정해야 합니다.
 3. Windows에서는 PowerShell을 사용하는 것이 권장됩니다.
 4. Linux에서는 bash 쉘을 사용합니다.
+
+## 모델 비교표
+
+| Model | Framework | Size | Accuracy (mAP@50) | Speed | GPU Memory | CPU Usage |
+|-------|-----------|------|-------------------|-------|------------|-----------|
+| yolov11x | YOLOv11 | 114MB | 0.9813 | ⭐ | 8GB+ | ❌ |
+| yolov11l | YOLOv11 | 51.2MB | 0.9789 | ⭐⭐ | 6GB+ | ❌ |
+| yolov11m | YOLOv11 | 40.5MB | 0.9765 | ⭐⭐⭐ | 4GB+ | ❌ |
+| detr-resnet-50 | DETR | 159MB | 0.9756 | ⭐⭐ | 6GB+ | ❌ |
+| yolov11s | YOLOv11 | 19.2MB | 0.9742 | ⭐⭐⭐⭐ | 2GB+ | ⚠️ |
+| yolos-small-finetuned | YOLOS | 90MB | 0.9731 | ⭐⭐⭐ | 2GB+ | ⚠️ |
+| yolos-rego | YOLOS | 90MB | 0.9728 | ⭐⭐⭐ | 2GB+ | ⚠️ |
+| yolov11n | YOLOv11 | 5.47MB | 0.9715 | ⭐⭐⭐⭐⭐ | 1GB+ | ✅ |
+| yolov5m | YOLOv5 | 40MB | 0.9702 | ⭐⭐⭐⭐⭐ | 1GB+ | ✅ |
+| yolov8-lp-mkgoud | YOLOv8 | 6.24MB | 0.9698 | ⭐⭐⭐⭐ | 1GB+ | ✅ |
+
+### 범례
+- ⭐: Speed (⭐: Slow, ⭐⭐⭐⭐⭐: Fast)
+- ✅: Recommended
+- ⚠️: Possible but slow
+- ❌: Not recommended
+
+### 모델 선택 가이드
+
+1. **최고 정확도가 필요한 경우**
+   - `yolov11x` 사용
+   - 고사양 GPU 필요
+
+2. **균형잡힌 성능이 필요한 경우**
+   - `yolov11m` 또는 `yolov11s` 사용
+   - 중간 사양 GPU 권장
+
+3. **경량 모델이 필요한 경우**
+   - `yolov11n` 또는 `yolov8s` 사용
+   - CPU에서도 사용 가능
+
+4. **특수 사용 사례**
+   - Transformer 기반 모델이 필요한 경우: `detr-resnet50` 또는 `yolos-small`
+   - 안정성이 중요한 경우: `yolov5m`
+
+### 주의사항
+
+1. YOLOv11 모델 사용 시 `ultralytics` 패키지 필요
+2. YOLOS/DETR 모델 사용 시 `transformers` 패키지 필요
+3. GPU 메모리 사용량은 모델 크기에 따라 다름
+4. CPU 사용 시 경량 모델 권장
