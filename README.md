@@ -173,6 +173,7 @@ python src/license_plate_labeler.py \
 | | - `yolov11m`: YOLOv11 medium (40.5MB) |
 | | - `yolov11l`: YOLOv11 large (51.2MB) |
 | | - `yolov11x`: YOLOv11x (최고 정확도, 114MB) |
+| | *(YOLOv11 모델은 처음 사용 시 Hugging Face에서 자동으로 다운로드되어 `~/.cache/license_plate_models` 폴더에 저장됩니다.)*
 | `--confidence` or `-c` | Confidence threshold (default 0.5) |
 | `--no-viz` | Disable visualization output (default False) |
 | `--undetected-dir` or `-e` | Directory to save undetected images (default None) |
