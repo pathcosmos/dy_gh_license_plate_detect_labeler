@@ -111,6 +111,7 @@ class LicensePlateYOLOLabeler:
             },
             "pros": ["매우 작은 모델 크기", "빠른 추론", "저사양 기기 적합"],
             "cons": ["다른 버전 대비 정확도 낮음"],
+            "direct_download": True,
             "verified": True,
             "license": "AGPLv3",
             "model_file": "license-plate-finetune-v1n.pt"
@@ -131,6 +132,7 @@ class LicensePlateYOLOLabeler:
             },
             "pros": ["균형잡힌 성능", "적절한 모델 크기", "실시간 처리 가능"],
             "cons": ["x 버전 대비 정확도 낮음"],
+            "direct_download": True,
             "verified": True,
             "license": "AGPLv3",
             "model_file": "license-plate-finetune-v1s.pt"
@@ -151,6 +153,7 @@ class LicensePlateYOLOLabeler:
             },
             "pros": ["높은 정확도", "적절한 추론 속도", "실시간 처리 가능"],
             "cons": ["x 버전 대비 정확도 낮음"],
+            "direct_download": True,
             "verified": True,
             "license": "AGPLv3",
             "model_file": "license-plate-finetune-v1m.pt"
@@ -171,6 +174,7 @@ class LicensePlateYOLOLabeler:
             },
             "pros": ["매우 높은 정확도", "강력한 특징 추출", "실시간 처리 가능"],
             "cons": ["큰 모델 크기"],
+            "direct_download": True,
             "verified": True,
             "license": "AGPLv3",
             "model_file": "license-plate-finetune-v1l.pt"
@@ -191,6 +195,7 @@ class LicensePlateYOLOLabeler:
             },
             "pros": ["최고 정확도", "강력한 특징 추출", "복잡한 케이스 처리 우수"],
             "cons": ["매우 큰 모델 크기", "높은 GPU 메모리 요구사항"],
+            "direct_download": True,
             "verified": True,
             "license": "AGPLv3",
             "model_file": "license-plate-finetune-v1x.pt"
