@@ -27,6 +27,12 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 # or
 pip install uv
 
+# Create and activate virtual environment
+python -m venv .venv
+source .venv/bin/activate  # Linux/Mac
+# or
+.venv\Scripts\activate     # Windows
+
 # Install dependencies with uv
 uv pip install torch torchvision
 uv pip install transformers
@@ -43,6 +49,13 @@ uv pip install -r requirements.txt
 
 #### Option 2: Using pip (Traditional method)
 ```bash
+# Create and activate virtual environment
+python -m venv .venv
+source .venv/bin/activate  # Linux/Mac
+# or
+.venv\Scripts\activate     # Windows
+
+# Install dependencies
 pip install torch torchvision
 pip install transformers
 pip install opencv-python
@@ -54,6 +67,58 @@ pip install ultralytics
 Or if you have a requirements.txt file:
 ```bash
 pip install -r requirements.txt
+```
+
+### CUDA Support
+
+For GPU acceleration, install the appropriate CUDA version:
+
+#### CUDA 12.1 (Latest)
+```bash
+uv pip install -r requirements-cuda121.txt
+# or
+pip install -r requirements-cuda121.txt
+```
+
+#### CUDA 12.0
+```bash
+uv pip install -r requirements-cuda120.txt
+# or
+pip install -r requirements-cuda120.txt
+```
+
+#### CUDA 11.8 (Legacy)
+```bash
+uv pip install -r requirements-cuda118.txt
+# or
+pip install -r requirements-cuda118.txt
+```
+
+#### CPU-only Installation
+```bash
+uv pip install -r requirements-cpu.txt
+# or
+pip install -r requirements-cpu.txt
+```
+
+### Verification
+
+After installation, verify your setup:
+```bash
+# Check PyTorch installation
+python -c "import torch; print('PyTorch:', torch.__version__)"
+
+# Check Transformers installation
+python -c "import transformers; print('Transformers:', transformers.__version__)"
+
+# Check Ultralytics installation
+python -c "import ultralytics; print('Ultralytics:', ultralytics.__version__)"
+
+# Check OpenCV installation
+python -c "import cv2; print('OpenCV:', cv2.__version__)"
+
+# Check CUDA availability
+python -c "import torch; print('CUDA available:', torch.cuda.is_available())"
 ```
 
 ## 🛠️ Installation
@@ -872,7 +937,13 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 # 또는
 pip install uv
 
-# uv로 의존성 설치
+# Create and activate virtual environment
+python -m venv .venv
+source .venv/bin/activate  # Linux/Mac
+# or
+.venv\Scripts\activate     # Windows
+
+# Install dependencies with uv
 uv pip install torch torchvision
 uv pip install transformers
 uv pip install opencv-python
@@ -881,13 +952,20 @@ uv pip install numpy
 uv pip install ultralytics
 ```
 
-또는 requirements.txt에서 설치:
+Or install from requirements.txt:
 ```bash
 uv pip install -r requirements.txt
 ```
 
 #### 옵션 2: pip 사용 (전통적인 방법)
 ```bash
+# Create and activate virtual environment
+python -m venv .venv
+source .venv/bin/activate  # Linux/Mac
+# or
+.venv\Scripts\activate     # Windows
+
+# Install dependencies
 pip install torch torchvision
 pip install transformers
 pip install opencv-python
@@ -896,113 +974,264 @@ pip install numpy
 pip install ultralytics
 ```
 
-또는 requirements.txt 파일이 있는 경우:
+Or if you have a requirements.txt file:
 ```bash
 pip install -r requirements.txt
 ```
 
-## 📊 사용 가능한 모델
+### CUDA Support
 
-### 추천 모델
-- **yolos-small**: YOLO + Vision Transformer, 번호판 탐지용 파인튜닝 (90MB)
-- **detr-resnet50**: DETR + ResNet50 백본, 번호판 탐지 특화 (160MB)
-- **yolov5m**: YOLOv5 medium 모델, 번호판 탐지 특화 (40MB)
+For GPU acceleration, install the appropriate CUDA version:
 
-### 모델 카테고리
-1. **🔥 추천 번호판 모델**
-   - yolos-small
-   - detr-resnet50
-
-2. **🏆 YOLOS 기반 (Transformer)**
-   - yolos-small
-   - yolos-rego
-   - yolos-base
-
-3. **🎯 DETR 기반 (Detection Transformer)**
-   - detr-resnet50
-   - detr-resnet-50
-
-4. **⚡ YOLOv8 기반**
-   - yolov8s
-
-5. **🔧 YOLOv5 기반**
-   - yolov5m
-
-### 성능 비교
-
-#### 속도 순위 (빠른 순)
-1. yolov5m (YOLOv5)
-2. yolos-small (YOLOS)
-3. detr-resnet50 (DETR)
-
-#### 정확도 순위 (높은 순)
-1. detr-resnet50 (DETR)
-2. yolos-small (YOLOS)
-3. yolov5m (YOLOv5)
-
-#### 모델 크기 순위 (작은 순)
-1. yolov5m (40MB)
-2. yolos-small (90MB)
-3. detr-resnet50 (160MB)
-
-#### 추천 사용 사례
-- 실시간 처리: yolov5m
-- 최고 정확도: detr-resnet50
-- 균형잡힌 성능: yolos-small
-- 안정성 우선: yolos-small
-
-## 📈 성능 지표
-
-### 테스트 환경
-- **CPU**: Intel i5-13500
-- **GPU**: NVIDIA RTX 4070
-- **RAM**: 32GB DDR5
-- **이미지**: 1600x1200 JPEG
-
-### 처리 속도
-- **CPU 처리**: 이미지당 ~2-3초
-- **GPU 처리**: 이미지당 ~0.5-1초 (GPU에 따라 다름)
-- **일괄 처리**: 시간당 ~1000장 (GPU), ~300장 (CPU)
-
-### GPU 요구사항
-- **최소 VRAM**: 4GB 권장
-- **최적 VRAM**: 대용량 이미지의 경우 8GB 이상
-- **CUDA 버전**: PyTorch 설치와 호환되는 버전
-
-## 📝 사용 예시
-
-### 기본 사용법
+#### CUDA 12.1 (Latest)
 ```bash
-# 단일 이미지 처리
-python src/license_plate_labeler.py -i 이미지.jpg -o 출력_디렉토리
-
-# 디렉토리 일괄 처리
-python src/license_plate_labeler.py -i 입력_디렉토리 -o 출력_디렉토리
+uv pip install -r requirements-cuda121.txt
+# or
+pip install -r requirements-cuda121.txt
 ```
 
-### 고급 옵션
+#### CUDA 12.0
 ```bash
-# 신뢰도 임계값 조정
-python src/license_plate_labeler.py -i 입력_디렉토리 -o 출력_디렉토리 -c 0.7
-
-# 시각화 비활성화
-python src/license_plate_labeler.py -i 입력_디렉토리 -o 출력_디렉토리 --no-viz
-
-# 미탐지 이미지 저장
-python src/license_plate_labeler.py -i 입력_디렉토리 -o 출력_디렉토리 -e 미탐지_폴더
-
-# 최대 처리 크기 설정
-python src/license_plate_labeler.py -i 입력_디렉토리 -o 출력_디렉토리 --max-size 1024
-
-# CPU 강제 사용
-python src/license_plate_labeler.py -i 입력_디렉토리 -o 출력_디렉토리 --force-cpu
+uv pip install -r requirements-cuda120.txt
+# or
+pip install -r requirements-cuda120.txt
 ```
 
-## 🔧 문제 해결
+#### CUDA 11.8 (Legacy)
+```bash
+uv pip install -r requirements-cuda118.txt
+# or
+pip install -r requirements-cuda118.txt
+```
 
-### 일반적인 오류
+#### CPU-only Installation
+```bash
+uv pip install -r requirements-cpu.txt
+# or
+pip install -r requirements-cpu.txt
+```
 
-1. **모델 로딩 실패**
+### Verification
+
+After installation, verify your setup:
+```bash
+# Check PyTorch installation
+python -c "import torch; print('PyTorch:', torch.__version__)"
+
+# Check Transformers installation
+python -c "import transformers; print('Transformers:', transformers.__version__)"
+
+# Check Ultralytics installation
+python -c "import ultralytics; print('Ultralytics:', ultralytics.__version__)"
+
+# Check OpenCV installation
+python -c "import cv2; print('OpenCV:', cv2.__version__)"
+
+# Check CUDA availability
+python -c "import torch; print('CUDA available:', torch.cuda.is_available())"
+```
+
+## 🛠️ Installation
+
+For detailed installation instructions, please refer to [INSTALL.md](INSTALL.md).
+
+### **Clone Repository**
+```bash
+git clone <repository-url>
+cd <downloaded-git-folder>
+```
+
+### Quick Installation
+
+#### Option 1: Using uv (Recommended for fast installation)
+```bash
+# Create virtual environment with uv
+uv venv .venv
+
+# Activate virtual environment
+source .venv/bin/activate  # Linux/Mac
+# or
+.venv\Scripts\activate     # Windows
+
+# Install dependencies
+uv pip install -r requirements.txt
+```
+
+#### Using traditional venv
+```bash
+python -m venv .venv
+source .venv/bin/activate  # Linux/Mac
+# or
+.venv\Scripts\activate     # Windows
+```
+
+3. **Install Dependencies**
+
+#### With uv (Recommended)
+```bash
+uv pip install -r requirements.txt
+```
+
+#### With pip
+```bash
+pip install -r requirements.txt
+```
+
+## 📖 Usage
+
+### Basic Usage
+
+**Single Image Processing:**
+```bash
+python src/license_plate_labeler.py -i path/to/image.jpg -o output_directory
+```
+
+**Directory Batch Processing:**
+```bash
+python src/license_plate_labeler.py -i input_directory -o output_directory
+```
+
+### Advanced Options
+
+**Adjust Confidence Threshold:**
+```bash
+python src/license_plate_labeler.py -i input_dir -o output_dir -c 0.7
+```
+
+**Disable Visualization:**
+```bash
+python src/license_plate_labeler.py -i input_dir -o output_dir --no-viz
+```
+
+**Save Undetected Images:**
+```bash
+python src/license_plate_labeler.py -i input_dir -o output_dir -e undetected_folder
+```
+
+**Set Maximum Processing Size:**
+```bash
+python src/license_plate_labeler.py -i input_dir -o output_dir --max-size 1024
+```
+
+**Force CPU Usage:**
+```bash
+python src/license_plate_labeler.py -i input_dir -o output_dir --force-cpu
+```
+
+**Combination of All Options:**
+```bash
+python src/license_plate_labeler.py \
+  -i data/images \
+  -o results \
+  -c 0.6 \
+  --max-size 1024 \
+  -e undetected \
+  --no-viz \
+  --force-cpu
+```
+
+## 📝 Command Line Options
+
+| Option | Description |
+|--------|-------------|
+| `--input` or `-i` | Input image file or directory path (Required) |
+| `--output` or `-o` | Output directory path (Required) |
+| `--model` | Model to use for detection (default: yolos-small) |
+| | Available models: |
+| | - `yolos-small`: YOLO + Vision Transformer (90MB) |
+| | - `yolos-rego`: YOLOS + 차량+번호판 동시 탐지 (90MB) |
+| | - `detr-resnet50`: DETR + ResNet50 (160MB) |
+| | - `yolov5m`: YOLOv5 medium (40MB) |
+| | - `yolov8s`: YOLOv8 small (22MB) |
+| | - `yolov11n`: YOLOv11 nano (5.47MB) |
+| | - `yolov11s`: YOLOv11 small (19.2MB) |
+| | - `yolov11m`: YOLOv11 medium (40.5MB) |
+| | - `yolov11l`: YOLOv11 large (51.2MB) |
+| | - `yolov11x`: YOLOv11x (최고 정확도, 114MB) |
+| | *(YOLOv11 모델은 처음 사용 시 Hugging Face에서 자동으로 다운로드되어 `~/.cache/license_plate_models` 폴더에 저장됩니다.)*
+| `--confidence` or `-c` | Confidence threshold (default 0.5) |
+| `--no-viz` | Disable visualization output (default False) |
+| `--undetected-dir` or `-e` | Directory to save undetected images (default None) |
+| `--max-size` | Maximum processing size (default 800) |
+| `--force-cpu` | Force CPU usage (default False) |
+| `--token` | Hugging Face API token for model download (use read-only token) |
+| `--local-model` | Path to local model file for offline use |
+| `--list-models` | List all available models and exit |
+
+## 📁 Output File Structure
+
+After processing, the following files will be generated in the output directory:
+
+```
+output_directory/
+├── image1.jpg                    # Original image (copied from input)
+├── image1.txt                    # YOLO label file (same name as image)
+├── image1_detected.jpg           # Detection visualization (optional)
+├── image2.png                    # Original image (copied from input)
+├── image2.txt                    # YOLO label file (same name as image)
+├── image2_detected.jpg           # Detection visualization (optional)
+└── ...
+```
+
+**Key Features of File Organization:**
+- **Original Images**: Source images are copied to the output directory preserving their original filenames and extensions
+- **Label Files**: YOLO label files (.txt) have identical filenames to their corresponding images, differing only in extension
+- **Visualization Files**: Detection visualization images use the `_detected.jpg` suffix for easy identification
+- **Perfect Dataset Structure**: Ready-to-use YOLO training dataset with properly paired images and labels
+
+### YOLO Label File Format
+
+Each `.txt` file follows this format:
+```
+class_id x_center y_center width height
+```
+
+Example:
+```
+0 0.512500 0.345833 0.125000 0.158333
+0 0.687500 0.512500 0.156250 0.145833
+```
+
+- `class_id`: Class ID (license plate is 0)
+- `x_center, y_center`: Bounding box center point (normalized coordinates, 0.0-1.0)
+- `width, height`: Bounding box size (normalized size, 0.0-1.0)
+
+## 🖼️ Supported Image Formats
+
+- JPEG (.jpg, .jpeg)
+- PNG (.png)
+- BMP (.bmp)
+- TIFF (.tiff)
+
+## ⚙️ Performance Optimization
+
+### Image Size Optimization
+The program automatically analyzes input image size to determine optimal processing size:
+
+- **Large Images (>800px)**: Downscale to maximum size for improved processing speed
+- **Small Images (<400px)**: Upscale to minimum size for better detection accuracy
+- **Appropriate Size**: Adjust to multiples of 8 for model efficiency optimization
+
+### GPU Usage
+When CUDA is installed, the program automatically detects and uses GPU to improve processing speed. The program will display detailed GPU information including:
+- GPU name and device count
+- Memory usage statistics
+- Automatic fallback to CPU if GPU is unavailable
+
+### Device Selection
+- **Automatic GPU Detection**: Uses GPU automatically when CUDA is available
+- **Manual CPU Override**: Use `--force-cpu` to disable GPU usage
+- **Memory Management**: Automatic GPU memory monitoring and error handling
+
+### Memory Optimization
+- Large images are automatically resized to reduce memory usage
+- During batch processing, images are processed one by one to prevent memory overflow
+
+## 🔧 Troubleshooting
+
+### Common Errors
+
+**1. Model Loading Failure**
 ```
 모델 로딩 실패: HTTPSConnectionPool...
 ```
@@ -1011,20 +1240,20 @@ python src/license_plate_labeler.py -i 입력_디렉토리 -o 출력_디렉토�
 - 방화벽 설정 확인
 - VPN 연결 해제 시도
 
-2. **GPU 메모리 부족**
+**2. GPU Out of Memory**
 ```
 RuntimeError: CUDA out of memory
 ```
 **해결 방법**: 
 ```bash
 # 이미지 처리 크기 줄이기
-python src/license_plate_labeler.py -i 입력_디렉토리 -o 출력_디렉토리 --max-size 600
+python src/license_plate_labeler.py -i input_dir -o output_dir --max-size 600
 
 # 또는 CPU 사용 강제
-python src/license_plate_labeler.py -i 입력_디렉토리 -o 출력_디렉토리 --force-cpu
+python src/license_plate_labeler.py -i input_dir -o output_dir --force-cpu
 ```
 
-3. **GPU 미감지**
+**3. GPU 미감지**
 ```
 CUDA를 사용할 수 없습니다. CPU를 사용합니다.
 ```
@@ -1045,7 +1274,7 @@ CUDA를 사용할 수 없습니다. CPU를 사용합니다.
 - [YOLO 공식 문서](https://docs.ultralytics.com/)
 - [HuggingFace Transformers](https://huggingface.co/docs/transformers/)
 - [OpenCV Python 문서](https://docs.opencv.org/4.x/d6/d00/tutorial_py_root.html)
-- [PyTorch 공식 문서](https://pytorch.org/docs/)
+- [PyTorch Official Documentation](https://pytorch.org/docs/)
 
 ## 🙏 감사의 말
 

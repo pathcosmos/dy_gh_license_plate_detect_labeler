@@ -353,7 +353,6 @@ class LicensePlateYOLOLabeler:
                     print("\n단점:" if cons_list else "\n단점: 없음")
                     for con in cons_list:
                         print(f"  - {con}")
-
                     
                     if 'license' in model:
                         print(f"\n라이선스: {model['license']}")
@@ -363,10 +362,20 @@ class LicensePlateYOLOLabeler:
                     print("-" * 50)
         
         print("\n=== 모델 선택 가이드 ===")
-        print("1. 최고 정확도가 필요한 경우: yolov11x")
-        print("2. 균형잡힌 성능이 필요한 경우: yolov11m 또는 yolov11s")
-        print("3. 경량화가 필요한 경우: yolov11n")
-        print("4. 차량과 번호판을 동시에 탐지해야 하는 경우: yolos-rego")
+        print("1. 최고 정확도가 필요한 경우:")
+        print("   - yolov11x: mAP@50 0.9813, 가장 높은 정확도")
+        print("   - yolov11l: mAP@50 0.978, 높은 정확도와 적절한 크기")
+        print("\n2. 균형잡힌 성능이 필요한 경우:")
+        print("   - yolov11m: mAP@50 0.975, 중간 크기와 좋은 성능")
+        print("   - yolov11s: mAP@50 0.972, 작은 크기와 양호한 성능")
+        print("\n3. 경량화가 필요한 경우:")
+        print("   - yolov11n: 5.47MB, 가장 작은 크기")
+        print("   - yolov8s: 22MB, 빠른 처리 속도")
+        print("\n4. 특수 사용 사례:")
+        print("   - yolos-rego: 차량과 번호판 동시 탐지")
+        print("   - yolos-small: Vision Transformer 기반 번호판 탐지")
+        print("   - detr-resnet50: DETR 기반 고정밀 탐지")
+        
         print("\n=== 주의사항 ===")
         print("1. YOLOv11 모델들은 ultralytics 패키지가 필요합니다.")
         print("2. YOLOS/DETR 모델들은 transformers 패키지가 필요합니다.")
@@ -653,9 +662,49 @@ class LicensePlateYOLOLabeler:
         Returns:
             str: 캐시 파일 경로
         """
+        if model_key not in self.AVAILABLE_MODELS:
+            raise ValueError(f"모델 키 '{model_key}'가 존재하지 않습니다.")
+            
+        model_info = self.AVAILABLE_MODELS[model_key]
+        
+        # 모델의 고유 식별자를 생성하기 위한 정보 수집
+        model_name = model_info["name"]
+        framework = model_info["framework"]
+        processor_type = model_info["processor_type"]
+        
+        # 다운로드 URI에서 파일명 추출 (있는 경우)
+        download_uri = model_info.get("download_uri", "")
+        original_filename = ""
+        if download_uri:
+            parsed_url = urlparse(download_uri)
+            original_filename = os.path.basename(parsed_url.path)
+        
+        # 모델 파일명이 명시적으로 지정된 경우 사용
+        if "model_file" in model_info:
+            original_filename = model_info["model_file"]
+        
+        # 고유한 캐시 파일명 생성
+        if original_filename:
+            # 원본 파일명이 있는 경우, 프레임워크와 프로세서 타입을 접두어로 추가
+            cache_filename = f"{framework}_{processor_type}_{original_filename}"
+        else:
+            # 원본 파일명이 없는 경우, 모델 이름을 기반으로 생성
+            model_name_safe = model_name.replace("/", "_").replace("\\", "_")
+            cache_filename = f"{framework}_{processor_type}_{model_name_safe}.pt"
+        
+        # 캐시 디렉토리 생성
         cache_dir = os.path.expanduser("~/.cache/license_plate_models")
-        model_filename = f"{model_key}.pt"
-        return os.path.join(cache_dir, model_filename)
+        os.makedirs(cache_dir, exist_ok=True)
+        
+        # 최종 캐시 경로 반환
+        cache_path = os.path.join(cache_dir, cache_filename)
+        
+        print(f"캐시 파일 경로: {cache_path}")
+        print(f"  - 프레임워크: {framework}")
+        print(f"  - 프로세서: {processor_type}")
+        print(f"  - 원본 파일명: {original_filename if original_filename else 'N/A'}")
+        
+        return cache_path
 
     def _download_model_from_url(self, url, local_path):
         """
@@ -1379,22 +1428,33 @@ def main():
             formatter_class=argparse.RawDescriptionHelpFormatter,
             epilog="""
 사용 예시:
-  모델 목록 확인:           python %(prog)s --list-models
-  기본 모델 사용:           python %(prog)s -i image.jpg -o output_dir
-  특정 모델 선택:           python %(prog)s -i image.jpg -o output_dir -m yolos-small
-  신뢰도 조정:              python %(prog)s -i input_dir -o output_dir -c 0.7
-  시각화 없이:              python %(prog)s -i input_dir -o output_dir --no-viz
-  미탐지 이미지 저장:       python %(prog)s -i input_dir -o output_dir -e undetected_dir
-  CPU 강제 사용:            python %(prog)s -i input_dir -o output_dir --force-cpu
+  1. 기본 사용:
+     python %(prog)s -i image.jpg -o output_dir
+  
+  2. 특정 모델 선택:
+     python %(prog)s -i image.jpg -o output_dir -m yolos-small
+  
+  3. 신뢰도 조정:
+     python %(prog)s -i input_dir -o output_dir -c 0.7
+  
+  4. 시각화 비활성화:
+     python %(prog)s -i input_dir -o output_dir --no-viz
+  
+  5. 미탐지 이미지 저장:
+     python %(prog)s -i input_dir -o output_dir -e undetected_dir
+  
+  6. CPU 강제 사용:
+     python %(prog)s -i input_dir -o output_dir --force-cpu
+
+모델 카테고리:
+  🔥 최고 정확도: yolov11x (mAP@50: 0.9813)
+  💪 고성능: yolov11l, yolov11m, detr-resnet50
+  ⚖️ 균형잡힌: yolov11s, yolos-small, yolos-rego
+  🚀 경량: yolov11n, yolov5m, yolov8s
 
 HuggingFace 토큰 설정:
   1. 환경 변수로 설정:       export HF_TOKEN='your_token_here'
   2. 명령줄 인자로 설정:     python %(prog)s -i input_dir -o output_dir -t 'your_token_here'
-
-추천 모델:
-  - 실시간 처리: yolov5m
-  - 최고 정확도: detr-resnet50
-  - 균형잡힌 성능: yolos-small
 
 필수 라이브러리 설치:
   pip install transformers huggingface-hub ultralytics torch torchvision opencv-python
@@ -1408,18 +1468,26 @@ HuggingFace 토큰 설정:
         parser.add_argument("--model", "-m", type=str, default="yolos-small",
                            choices=available_model_keys,
                            help=f"사용할 모델 선택 (기본값: yolos-small)\n"
-                                f"- yolos-small: YOLO + Vision Transformer, 번호판 전용 파인튜닝 (90MB)\n"
-                                f"- yolos-rego: YOLOS + 차량+번호판 동시 탐지 (90MB)\n"
-                                f"- detr-resnet50: DETR + ResNet50 백본, 번호판 탐지 전용 (160MB)\n"
-                                f"- yolov5m: YOLOv5 medium 모델, 번호판 탐지 특화 (40MB)\n"
-                                f"- yolov8s: 기본 YOLOv8 small 모델 (22MB)\n"
-                                f"- yolov11x: YOLOv11x 모델, 최고 정확도 (mAP@50: 0.9813, 180MB)")
+                                f"🔥 최고 정확도:\n"
+                                f"  - yolov11x: YOLOv11x 모델, 최고 정확도 (mAP@50: 0.9813, 114MB)\n"
+                                f"💪 고성능:\n"
+                                f"  - yolov11l: YOLOv11 large 모델 (51.2MB)\n"
+                                f"  - yolov11m: YOLOv11 medium 모델 (40.5MB)\n"
+                                f"  - detr-resnet50: DETR + ResNet50 (160MB)\n"
+                                f"⚖️ 균형잡힌:\n"
+                                f"  - yolov11s: YOLOv11 small 모델 (19.2MB)\n"
+                                f"  - yolos-small: YOLO + Vision Transformer (90MB)\n"
+                                f"  - yolos-rego: YOLOS + 차량+번호판 동시 탐지 (90MB)\n"
+                                f"🚀 경량:\n"
+                                f"  - yolov11n: YOLOv11 nano 모델 (5.47MB)\n"
+                                f"  - yolov5m: YOLOv5 medium 모델 (40MB)\n"
+                                f"  - yolov8s: YOLOv8 small 모델 (22MB)")
         parser.add_argument("--token", "-t", type=str,
                            help="HuggingFace 액세스 토큰 (private 모델 접근시 필요)\n"
                                 "토큰은 https://huggingface.co/settings/tokens 에서 생성 가능\n"
                                 "환경 변수 HF_TOKEN으로도 설정 가능")
         parser.add_argument("--list-models", action="store_true",
-                           help="사용 가능한 모델 목록과 사용 예시 출력")
+                           help="사용 가능한 모델 목록과 상세 정보 출력")
         parser.add_argument("--local-model", type=str,
                            help="로컬 모델 경로 (오프라인 사용시)\n"
                                 "HuggingFace 모델을 로컬에 다운로드하여 사용할 때 지정")
