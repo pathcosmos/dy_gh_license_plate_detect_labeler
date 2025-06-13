@@ -111,6 +111,7 @@ class LicensePlateYOLOLabeler:
             },
             "pros": ["매우 작은 모델 크기", "빠른 추론", "저사양 기기 적합"],
             "cons": ["다른 버전 대비 정확도 낮음"],
+            "direct_download": True,
             "verified": True,
             "license": "AGPLv3",
             "model_file": "license-plate-finetune-v1n.pt"
@@ -131,6 +132,7 @@ class LicensePlateYOLOLabeler:
             },
             "pros": ["균형잡힌 성능", "적절한 모델 크기", "실시간 처리 가능"],
             "cons": ["x 버전 대비 정확도 낮음"],
+            "direct_download": True,
             "verified": True,
             "license": "AGPLv3",
             "model_file": "license-plate-finetune-v1s.pt"
@@ -151,6 +153,7 @@ class LicensePlateYOLOLabeler:
             },
             "pros": ["높은 정확도", "적절한 추론 속도", "실시간 처리 가능"],
             "cons": ["x 버전 대비 정확도 낮음"],
+            "direct_download": True,
             "verified": True,
             "license": "AGPLv3",
             "model_file": "license-plate-finetune-v1m.pt"
@@ -171,6 +174,7 @@ class LicensePlateYOLOLabeler:
             },
             "pros": ["매우 높은 정확도", "강력한 특징 추출", "실시간 처리 가능"],
             "cons": ["큰 모델 크기"],
+            "direct_download": True,
             "verified": True,
             "license": "AGPLv3",
             "model_file": "license-plate-finetune-v1l.pt"
@@ -191,6 +195,7 @@ class LicensePlateYOLOLabeler:
             },
             "pros": ["최고 정확도", "강력한 특징 추출", "복잡한 케이스 처리 우수"],
             "cons": ["매우 큰 모델 크기", "높은 GPU 메모리 요구사항"],
+            "direct_download": True,
             "verified": True,
             "license": "AGPLv3",
             "model_file": "license-plate-finetune-v1x.pt"
@@ -476,7 +481,7 @@ class LicensePlateYOLOLabeler:
             elif processor_type == "YOLOv8":
                 print("YOLOv8 모델 로드 중...")
                 from ultralytics import YOLO
-                
+
                 # 로컬 파일 확인
                 if os.path.exists(model_path):
                     print(f"로컬 YOLOv8 모델 로드: {model_path}")
@@ -485,10 +490,26 @@ class LicensePlateYOLOLabeler:
                     print(f"로컬 모델을 찾을 수 없습니다: {model_path}")
                     print("기본 YOLOv8 모델을 사용합니다.")
                     model = YOLO(model_name)
-                
+
                 self.processor = None  # YOLOv8도 별도 프로세서 불필요
                 return model
-            
+
+            elif processor_type == "YOLOv11":
+                print("YOLOv11 모델 로드 중...")
+                from ultralytics import YOLO
+                
+                # 로컬 파일 확인
+                if os.path.exists(model_path):
+                    print(f"로컬 YOLOv11 모델 로드: {model_path}")
+                    model = YOLO(model_path)
+                else:
+                    print(f"로컬 모델을 찾을 수 없습니다: {model_path}")
+                    print("기본 YOLOv11 모델을 사용합니다.")
+                    model = YOLO(model_name)
+
+                self.processor = None  # YOLOv11도 별도 프로세서 불필요
+                return model
+
             else:
                 raise ValueError(f"지원하지 않는 YOLO 타입: {processor_type}")
                 
@@ -875,7 +896,27 @@ class LicensePlateYOLOLabeler:
                     results = self.model(image_path, conf=confidence_threshold)
                 except TypeError:
                     results = self.model(image_path)
-                
+
+                detections = []
+                for result in results:
+                    boxes = result.boxes
+                    if boxes is not None:
+                        for box in boxes:
+                            conf = float(box.conf.item())
+                            if conf >= confidence_threshold:
+                                detection = {
+                                    'confidence': round(conf, 3),
+                                    'label': int(box.cls.item()),
+                                    'bbox': box.xyxy[0].cpu().numpy().tolist()
+                                }
+                                detections.append(detection)
+
+            elif processor_type == "YOLOv11":
+                try:
+                    results = self.model(image_path, conf=confidence_threshold)
+                except TypeError:
+                    results = self.model(image_path)
+
                 detections = []
                 for result in results:
                     boxes = result.boxes
