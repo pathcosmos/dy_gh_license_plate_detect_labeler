@@ -1346,10 +1346,27 @@ class LicensePlateYOLOLabeler:
         if save_visualization:
             vis_path = os.path.join(output_dir, f"{image_name}_detected.jpg")
             self.visualize_detections(image_path, detections, vis_path)
-        
+
         print(f"탐지된 번호판 수: {len(detections)}")
         for i, detection in enumerate(detections):
             print(f"  번호판 {i+1}: 신뢰도 {detection['confidence']:.3f}")
+
+        # 번호판 영역 크롭 이미지 저장
+        try:
+            with Image.open(image_path) as img:
+                for idx, detection in enumerate(detections, 1):
+                    x_min, y_min, x_max, y_max = map(int, detection['bbox'])
+                    x_min = max(0, x_min)
+                    y_min = max(0, y_min)
+                    x_max = min(img.width, x_max)
+                    y_max = min(img.height, y_max)
+                    cropped = img.crop((x_min, y_min, x_max, y_max))
+                    crop_filename = f"{image_name}_plate{idx:03d}.jpg"
+                    crop_path = os.path.join(output_dir, crop_filename)
+                    cropped.save(crop_path)
+                    print(f"크롭된 번호판 저장: {crop_path}")
+        except Exception as e:
+            print(f"번호판 크롭 저장 실패: {e}")
     
     def visualize_detections(self, image_path, detections, output_path=None):
         """
