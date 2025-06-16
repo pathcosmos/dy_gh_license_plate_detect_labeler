@@ -252,6 +252,28 @@ python src/license_plate_labeler.py \
 | yolov5m | YOLOv5 | 40MB | 0.9702 | ⭐⭐⭐⭐⭐ | 1GB+ | ✅ |
 | yolov8-lp-mkgoud | YOLOv8 | 6.24MB | 0.9698 | ⭐⭐⭐⭐ | 1GB+ | ✅ |
 
+### Model Details
+
+| Key | Full Name | Model Page | Key Features |
+|-----|-----------|------------|--------------|
+| yolos-small-finetuned | nickmuchi/yolos-small-finetuned-license-plate-detection | https://huggingface.co/nickmuchi/yolos-small-finetuned-license-plate-detection | High accuracy Vision Transformer fine-tuned for license plates, fast inference |
+| yolos-rego | nickmuchi/yolos-small-rego-plates-detection | https://huggingface.co/nickmuchi/yolos-small-rego-plates-detection | Detects vehicles and license plates together, good generalization |
+| yolov11x | morsetechlab/yolov11-license-plate-detection | https://huggingface.co/morsetechlab/yolov11-license-plate-detection | Highest accuracy, large size requires powerful GPU |
+| yolov11l | morsetechlab/yolov11-license-plate-detection | https://huggingface.co/morsetechlab/yolov11-license-plate-detection | Very high accuracy with real-time capability |
+| yolov11m | morsetechlab/yolov11-license-plate-detection | https://huggingface.co/morsetechlab/yolov11-license-plate-detection | Balanced speed and accuracy |
+| yolov11s | morsetechlab/yolov11-license-plate-detection | https://huggingface.co/morsetechlab/yolov11-license-plate-detection | Small model for real-time use |
+| yolov11n | morsetechlab/yolov11-license-plate-detection | https://huggingface.co/morsetechlab/yolov11-license-plate-detection | Nano size, suitable for low resource devices |
+| yolos-small | hustvl/yolos-small | https://huggingface.co/hustvl/yolos-small | Lightweight Vision Transformer baseline |
+| yolos-base | hustvl/yolos-base | https://huggingface.co/hustvl/yolos-base | Balanced YOLOS model |
+| yolos-tiny | hustvl/yolos-tiny | https://huggingface.co/hustvl/yolos-tiny | Ultra small YOLOS model |
+| detr-resnet-50 | facebook/detr-resnet-50 | https://huggingface.co/facebook/detr-resnet-50 | DETR model with ResNet-50 backbone |
+| detr-resnet-101 | facebook/detr-resnet-101 | https://huggingface.co/facebook/detr-resnet-101 | High accuracy DETR with ResNet-101 |
+| yolov8-lp-yasir | yasirfaizahmed/license-plate-object-detection | https://huggingface.co/yasirfaizahmed/license-plate-object-detection | YOLOv8 nano, fast inference |
+| yolov8-lp-koushim | Koushim/yolov8-license-plate-detection | https://huggingface.co/Koushim/yolov8-license-plate-detection | YOLOv8 nano, fast inference |
+| yolov8-lp-mkgoud | MKgoud/License-Plate-Recognizer | https://huggingface.co/MKgoud/License-Plate-Recognizer | YOLOv8 small license plate model |
+| yolov5n | keremberke/yolov5n-license-plate | https://huggingface.co/keremberke/yolov5n-license-plate | Tiny YOLOv5 for real-time processing |
+| yolov5s | keremberke/yolov5s-license-plate | https://huggingface.co/keremberke/yolov5s-license-plate | Small YOLOv5 with balanced accuracy |
+| yolov5m | keremberke/yolov5m-license-plate | https://huggingface.co/keremberke/yolov5m-license-plate | Medium YOLOv5 with high accuracy |
 ## 📁 Output File Structure
 
 After processing, the following files will be generated in the output directory:
