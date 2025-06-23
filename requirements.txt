@@ -8,6 +8,10 @@ torchaudio>=2.1.0
 transformers>=4.35.0
 ultralytics>=8.0.196
 
+# OCR for license plate text recognition
+paddlepaddle>=2.5.0
+paddleocr>=2.7.0
+
 # YOLOv5 dependencies
 # YOLOv5 is loaded via torch.hub, but these are its dependencies
 opencv-python>=4.8.0
