@@ -282,9 +282,11 @@ After processing, the following files will be generated in the output directory:
 output_directory/
 ├── image1.jpg                    # Original image (copied from input)
 ├── image1.txt                    # YOLO label file (same name as image)
+├── image1_plate001.jpg           # Cropped license plate (index starts at 001)
 ├── image1_detected.jpg           # Detection visualization (optional)
 ├── image2.png                    # Original image (copied from input)
 ├── image2.txt                    # YOLO label file (same name as image)
+├── image2_plate001.jpg           # Cropped license plate (index starts at 001)
 ├── image2_detected.jpg           # Detection visualization (optional)
 └── ...
 ```
@@ -294,6 +296,8 @@ output_directory/
 - **Label Files**: YOLO label files (.txt) have identical filenames to their corresponding images, differing only in extension
 - **Visualization Files**: Detection visualization images use the `_detected.jpg` suffix for easy identification
 - **Perfect Dataset Structure**: Ready-to-use YOLO training dataset with properly paired images and labels
+- **Cropped Plates**: Each detected license plate is saved as `{image_name}_plate###.jpg`
+- **Undetected Images**: If `-e`/`--undetected-dir` is set, images with no detections are copied there with an `_undetected` suffix
 
 ### YOLO Label File Format
 
@@ -1206,9 +1210,11 @@ After processing, the following files will be generated in the output directory:
 output_directory/
 ├── image1.jpg                    # Original image (copied from input)
 ├── image1.txt                    # YOLO label file (same name as image)
+├── image1_plate001.jpg           # Cropped license plate (index starts at 001)
 ├── image1_detected.jpg           # Detection visualization (optional)
 ├── image2.png                    # Original image (copied from input)
 ├── image2.txt                    # YOLO label file (same name as image)
+├── image2_plate001.jpg           # Cropped license plate (index starts at 001)
 ├── image2_detected.jpg           # Detection visualization (optional)
 └── ...
 ```
@@ -1218,6 +1224,8 @@ output_directory/
 - **Label Files**: YOLO label files (.txt) have identical filenames to their corresponding images, differing only in extension
 - **Visualization Files**: Detection visualization images use the `_detected.jpg` suffix for easy identification
 - **Perfect Dataset Structure**: Ready-to-use YOLO training dataset with properly paired images and labels
+- **Cropped Plates**: Each detected license plate is saved as `{image_name}_plate###.jpg`
+- **Undetected Images**: If `-e`/`--undetected-dir` is set, images with no detections are copied there with an `_undetected` suffix
 
 ### YOLO Label File Format
 
