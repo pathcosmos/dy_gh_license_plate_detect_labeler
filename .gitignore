@@ -31,3 +31,13 @@ data/
 .git/
 
 tests/logs/
+
+source_files_00001.zip
+source_files_00002.zip
+
+org_source_plate/
+
+ocr_results/
+miss_source_plate/
+ocr_test_results/
+out_source_plate/
